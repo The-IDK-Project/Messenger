@@ -1,0 +1,12 @@
+build/
+*.so
+*.a
+*.o
+*.d
+*.log
+*.db
+*.cache
+.vscode/
+.idea/
+*.user
+compile_commands.json
