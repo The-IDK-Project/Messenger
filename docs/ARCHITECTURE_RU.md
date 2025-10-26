@@ -1,4 +1,4 @@
-[English](https://github.com/The-IDK-Project/Messenger/blob/master/docs/ARCHITECTURE.md) | [Русский]
+[English](https://github.com/The-IDK-Project/Messenger/blob/master/docs/ARCHITECTURE.md) | [Русский](#ru)
 <a name="русский"></a>
 
 # Обзор архитектуры
