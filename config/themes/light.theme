@@ -1,0 +1,30 @@
+[colors]
+background = #ffffff
+foreground = #333333
+accent = #007acc
+error = #e51400
+warning = #f0a30a
+success = #00aba9
+
+[chat]
+message_bg_own = #e1f5fe
+message_bg_other = #f5f5f5
+message_border = #e0e0e0
+timestamp = #666666
+username_own = #007acc
+username_other = #d80073
+
+[interface]
+sidebar_bg = #f8f8f8
+sidebar_border = #e0e0e0
+input_bg = #ffffff
+input_border = #e0e0e0
+status_online = #00aba9
+status_offline = #666666
+status_away = #f0a30a
+
+[fonts]
+main_family = "Monospace"
+main_size = 12
+title_size = 14
+timestamp_size = 10

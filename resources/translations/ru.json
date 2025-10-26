@@ -1,0 +1,40 @@
+{
+  "app": {
+    "title": "Unified Messenger",
+    "quit": "Выход",
+    "settings": "Настройки",
+    "about": "О программе"
+  },
+  "chat": {
+    "send_message": "Отправить сообщение",
+    "type_message": "Введите сообщение...",
+    "attach_file": "Прикрепить файл",
+    "online": "В сети",
+    "offline": "Не в сети",
+    "typing": "печатает...",
+    "message_delivered": "Доставлено",
+    "message_read": "Прочитано"
+  },
+  "protocols": {
+    "matrix": "Matrix",
+    "telegram": "Telegram",
+    "irc": "IRC",
+    "connecting": "Подключение к {protocol}...",
+    "connected": "Подключено к {protocol}",
+    "disconnected": "Отключено от {protocol}",
+    "connection_failed": "Ошибка подключения к {protocol}"
+  },
+  "errors": {
+    "network_error": "Ошибка сети",
+    "auth_failed": "Ошибка аутентификации",
+    "invalid_message": "Неверный формат сообщения",
+    "file_too_large": "Файл слишком большой"
+  },
+  "menu": {
+    "file": "Файл",
+    "edit": "Правка",
+    "view": "Вид",
+    "protocols": "Протоколы",
+    "help": "Помощь"
+  }
+}
