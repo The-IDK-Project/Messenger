@@ -1,6 +1,6 @@
 
 
-[English](#english) | [Русский](#русский)
+[English](#english) | [Русский](https://github.com/The-IDK-Project/Messenger/blob/master/docs/ARCHITECTURE_RU.md)
 
 <a name="english"></a>
 # Architecture Overview
