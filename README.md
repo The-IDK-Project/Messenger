@@ -61,7 +61,7 @@ sudo make install
 
 [Build Instructions](https://github.com/The-IDK-Project/Messenger/blob/master/docs/Build%20Instructions.md)
 
-[Contributing Guide](https://github.com/The-IDK-Project/super-duper-giggle/blob/main/docs/Contributing%20Guide.md)
+[Contributing Guide](https://github.com/The-IDK-Project/Messenger/blob/master/docs/Contributing%20Guide.md)
 
 # Configuration
 ### Basic Configuration
