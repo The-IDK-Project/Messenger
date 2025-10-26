@@ -10,38 +10,38 @@
 Unified Messenger is a multi-protocol chat client built with a modular, layered architecture that separates concerns while providing a unified user experience across different chat protocols.
 
 #High-Level Architecture
-
+```
 ┌─────────────────────────────────────────────────────────────┐
-│ Presentation Layer │
+│ Presentation Layer                                          │
 ├─────────────────────────────────────────────────────────────┤
-│ TUI (ncurses) │ GUI (Qt) │ Web UI* │
+│ TUI (ncurses) │ GUI (Qt) │ Web UI*                          │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│ Application Layer │
+│ Application Layer                                           │
 ├─────────────────────────────────────────────────────────────┤
-│ UnifiedMessenger │ SessionManager │ NotificationManager │
+│ UnifiedMessenger │ SessionManager │ NotificationManager     │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│ Business Logic Layer │
+│ Business Logic Layer                                        │
 ├─────────────────────────────────────────────────────────────┤
-│ ProtocolManager │ MessageRouter │ SyncEngine │
+│ ProtocolManager │ MessageRouter │ SyncEngine                │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│ Protocol Abstraction Layer │
+│ Protocol Abstraction Layer                                  │
 ├─────────────────────────────────────────────────────────────┤
-│ MatrixHandler │ IRCHandler │ TelegramHandler │
+│ MatrixHandler │ IRCHandler │ TelegramHandler                │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
 │ Data Access Layer │
 ├─────────────────────────────────────────────────────────────┤
-│ DatabaseManager + SQLite Storage │
+│ DatabaseManager + SQLite Storage                            │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│ Network Layer │
+│ Network Layer                                               │
 ├─────────────────────────────────────────────────────────────┤
-│ HTTP Client │ WebSocket Client │ IRC Socket │ TDLib │
+│ HTTP Client │ WebSocket Client │ IRC Socket │ TDLib         │
 └─────────────────────────────────────────────────────────────┘
-
+```
 
 ##Core Components
 
