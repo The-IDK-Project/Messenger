@@ -57,7 +57,7 @@ sudo make install
 
 ### Documentation
 
-[Architecture Overview](https://github.com/The-IDK-Project/super-duper-giggle/edit/main/docs/ARCHITECTURE.md)
+[Architecture Overview](https://github.com/The-IDK-Project/Messenger/blob/master/docs/ARCHITECTURE.md)
 
 [Build Instructions](https://github.com/The-IDK-Project/super-duper-giggle/blob/main/docs/Build%20Instructions.md)
 
