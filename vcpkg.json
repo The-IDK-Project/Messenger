@@ -1,0 +1,32 @@
+{
+  "name": "unified-messenger",
+  "version-string": "1.0.0",
+  "description": "Multi-protocol chat client for Matrix, IRC, and Telegram",
+  "dependencies": [
+    "curl",
+    "jsoncpp",
+    "sqlite3",
+    {
+      "name": "ncurses",
+      "platform": "!windows"
+    },
+    {
+      "name": "qt5-base",
+      "platform": "!linux"
+    }
+  ],
+  "features": {
+    "tui": {
+      "description": "Terminal user interface",
+      "dependencies": ["ncurses"]
+    },
+    "gui": {
+      "description": "Graphical user interface",
+      "dependencies": ["qt5-base"]
+    },
+    "telegram": {
+      "description": "Telegram protocol support",
+      "dependencies": ["tdlib"]
+    }
+  }
+}
