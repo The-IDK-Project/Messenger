@@ -1,9 +1,6 @@
-# Unified Messenger 🚀
+# Messenger 🚀
 
-[English](#english) | [Русский](#русский)
-
-<a name="english"></a>
-# Unified Messenger - Multi-Protocol Chat Client
+# Messenger - Multi-Protocol Chat Client
 
 ![C++](https://img.shields.io/badge/C++-17+-blue.svg)
 ![CMake](https://img.shields.io/badge/CMake-3.15+-green.svg)
