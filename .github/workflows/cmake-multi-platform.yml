@@ -1,0 +1,303 @@
+name: CMake Multi-Platform Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [tui, gui, full]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake pkg-config \
+          libcurl4-openssl-dev libjsoncpp-dev \
+          sqlite3 libsqlite3-dev \
+          libncurses5-dev libncursesw5-dev
+
+    - name: Install dependencies (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake pkg-config \
+          libcurl4-openssl-dev libjsoncpp-dev \
+          sqlite3 libsqlite3-dev \
+          qtbase5-dev qt5-default
+
+    - name: Install dependencies (Full)
+      if: matrix.config == 'full'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake pkg-config \
+          libcurl4-openssl-dev libjsoncpp-dev \
+          sqlite3 libsqlite3-dev \
+          libncurses5-dev libncursesw5-dev \
+          qtbase5-dev qt5-default
+
+    - name: Configure CMake (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=ON \
+          -DBUILD_GUI=OFF \
+          -DBUILD_TESTS=ON
+
+    - name: Configure CMake (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=OFF \
+          -DBUILD_GUI=ON \
+          -DBUILD_TESTS=ON
+
+    - name: Configure CMake (Full)
+      if: matrix.config == 'full'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=ON \
+          -DBUILD_GUI=ON \
+          -DBUILD_TESTS=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j $(nproc)
+
+    - name: Run tests
+      run: |
+        cd ${{github.workspace}}/build
+        ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+
+    - name: Upload artifacts (TUI)
+      if: matrix.config == 'tui'
+      uses: actions/upload-artifact@v4
+      with:
+        name: unified-messenger-linux-tui
+        path: |
+          ${{github.workspace}}/build/unified-messenger
+          ${{github.workspace}}/build/*.so*
+
+    - name: Upload artifacts (GUI)
+      if: matrix.config == 'gui'
+      uses: actions/upload-artifact@v4
+      with:
+        name: unified-messenger-linux-gui
+        path: |
+          ${{github.workspace}}/build/unified-messenger
+          ${{github.workspace}}/build/*.so*
+
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        config: [tui, gui]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        brew update
+        brew install cmake pkg-config curl jsoncpp sqlite3 ncurses
+
+    - name: Install dependencies (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        brew update
+        brew install cmake pkg-config curl jsoncpp sqlite3 qt5
+
+    - name: Configure CMake (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=ON \
+          -DBUILD_GUI=OFF \
+          -DBUILD_TESTS=ON
+
+    - name: Configure CMake (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=OFF \
+          -DBUILD_GUI=ON \
+          -DBUILD_TESTS=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j $(sysctl -n hw.ncpu)
+
+    - name: Run tests
+      run: |
+        cd ${{github.workspace}}/build
+        ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: unified-messenger-macos-${{ matrix.config }}
+        path: |
+          ${{github.workspace}}/build/unified-messenger
+          ${{github.workspace}}/build/*.dylib
+
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [tui, gui]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install vcpkg dependencies (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        vcpkg install curl jsoncpp sqlite3 ncurses
+
+    - name: Install vcpkg dependencies (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        vcpkg install curl jsoncpp sqlite3 qt5-base
+
+    - name: Configure CMake (TUI)
+      if: matrix.config == 'tui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=ON \
+          -DBUILD_GUI=OFF \
+          -DBUILD_TESTS=ON \
+          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+    - name: Configure CMake (GUI)
+      if: matrix.config == 'gui'
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DBUILD_TUI=OFF \
+          -DBUILD_GUI=ON \
+          -DBUILD_TESTS=ON \
+          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --parallel
+
+    - name: Run tests
+      run: |
+        cd ${{github.workspace}}/build
+        ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: unified-messenger-windows-${{ matrix.config }}
+        path: |
+          ${{github.workspace}}/build/${{env.BUILD_TYPE}}/unified-messenger.exe
+          ${{github.workspace}}/build/${{env.BUILD_TYPE}}/*.dll
+
+  build-coverage:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake pkg-config \
+          libcurl4-openssl-dev libjsoncpp-dev \
+          sqlite3 libsqlite3-dev \
+          libncurses5-dev libncursesw5-dev \
+          lcov gcovr
+
+    - name: Configure CMake with coverage
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DBUILD_TUI=ON \
+          -DBUILD_COVERAGE=ON \
+          -DBUILD_TESTS=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Debug -j $(nproc)
+
+    - name: Run tests with coverage
+      run: |
+        cd ${{github.workspace}}/build
+        ctest -C Debug --output-on-failure
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        lcov --list coverage.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ${{github.workspace}}/build/coverage.info
+        flags: unittests
+        name: codecov-umbrella
+
+  package-release:
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Linux packages
+      run: |
+        mkdir -p packages
+        # Create DEB package
+        cd ${{github.workspace}}/build
+        cpack -G DEB
+        mv *.deb ${{github.workspace}}/packages/
+        
+        # Create AppImage
+        cd ${{github.workspace}}
+        ./scripts/create_appimage.sh
+        mv *.AppImage ${{github.workspace}}/packages/
+
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/*
+        draft: true
+        prerelease: false
