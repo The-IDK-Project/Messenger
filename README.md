@@ -142,3 +142,37 @@ This project is licensed under the MIT License - see the LICENSE file for detail
     TDLib for Telegram integration
 
     All our wonderful contributors
+
+# Third-Party Dependencies
+
+This directory contains third-party libraries used by Unified Messenger.
+
+## Included Libraries
+
+### nlohmann/json
+- **Version**: 3.11.2
+- **License**: MIT
+- **Purpose**: JSON parsing and serialization
+- **Usage**: Single-header library, no build required
+
+### SQLite3
+- **Version**: 3.42.0
+- **License**: Public Domain
+- **Purpose**: Embedded database engine
+- **Usage**: Built as static library
+
+### TDLib (Telegram Database Library)
+- **Version**: 1.8.0
+- **License**: Boost Software License 1.0
+- **Purpose**: Telegram protocol implementation
+- **Usage**: Optional, built when Telegram support is enabled
+
+## Management
+
+### Download Dependencies
+```bash
+# Basic dependencies (JSON + SQLite)
+./scripts/download_deps.sh
+
+# With Telegram support
+./scripts/download_deps.sh --with-telegram
