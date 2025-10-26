@@ -1,4 +1,4 @@
-#Architecture Overview
+
 
 [English](#english) | [Русский](#русский)
 
