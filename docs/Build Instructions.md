@@ -16,7 +16,7 @@ libcurl-devel jsoncpp-devel sqlite-devel ncurses-devel
 ## Build
 ```
 git clone https://github.com/The-IDK-Project/Messenger
-cd unified-messenger
+cd Messenger
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
