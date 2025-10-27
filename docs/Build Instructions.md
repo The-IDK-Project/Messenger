@@ -15,7 +15,7 @@ libcurl-devel jsoncpp-devel sqlite-devel ncurses-devel
 ```
 ## Build
 ```
-git clone https://github.com/yourusername/unified-messenger
+git clone https://github.com/The-IDK-Project/Messenger
 cd unified-messenger
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -38,7 +38,7 @@ sudo make install
 ```
 ## Run
 ```
-./unified-messenger
+./Messenger
 ```
 ## Test
 ```
