@@ -143,6 +143,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
     All our wonderful contributors
 
+# Chat on matrix: #theidkteam:matrix.org
+
 # Third-Party Dependencies
 
 This directory contains third-party libraries used by Unified Messenger.
