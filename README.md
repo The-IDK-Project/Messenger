@@ -3,7 +3,7 @@
 # Messenger - Multi-Protocol Chat Client
 
 ![C++](https://img.shields.io/badge/C++-17+-blue.svg)
-![CMake](https://img.shields.io/badge/CMake-3.15+-green.svg)
+![CMake](https://img.shields.io/badge/CMake-3.16+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
