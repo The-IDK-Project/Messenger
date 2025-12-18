@@ -40,8 +40,8 @@ sudo dnf install gcc-c++ cmake pkgconfig \
 ### Build & Install
 
 ```
-git clone https://github.com/The-IDK-Project/super-duper-giggle.git
-cd super-duper-giggle
+git clone https://github.com/The-IDK-Project/Messenger.git
+cd Messenger
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
