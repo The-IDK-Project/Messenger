@@ -13,6 +13,10 @@ using RoomCallback = std::function<void(const ChatRoom&)>;
 using UserCallback = std::function<void(const User&)>;
 using ErrorCallback = std::function<void(const std::string&)>;
 
+// New Callbacks for calls
+using CallIncomingCallback = std::function<void(const std::string& call_id, const std::string& caller_id, bool is_video)>;
+using CallStateCallback = std::function<void(const std::string& call_id, const std::string& state)>;
+
 enum class ProtocolState {
     DISCONNECTED,
     CONNECTING,
@@ -21,13 +25,14 @@ enum class ProtocolState {
 };
 
 enum class ProtocolCapabilities {
-    MESSAGES      = 1 << 0,
-    FILES         = 1 << 1,
-    ENCRYPTION    = 1 << 2,
-    TYPING        = 1 << 3,
-    READ_RECEIPTS = 1 << 4,
-    VOICE         = 1 << 5,
-    VIDEO         = 1 << 6
+    MESSAGES       = 1 << 0,
+    FILES          = 1 << 1,
+    ENCRYPTION     = 1 << 2,
+    TYPING         = 1 << 3,
+    READ_RECEIPTS  = 1 << 4,
+    VOICE_CALLS    = 1 << 5,
+    VIDEO_CALLS    = 1 << 6,
+    VIDEO_MESSAGES = 1 << 7
 };
 
 class ProtocolHandler {
@@ -44,9 +49,19 @@ public:
     virtual bool send_file(const std::string& room_id,
                           const std::string& file_path,
                           const std::string& filename = "") = 0;
+
+    // Video messages (circles)
+    virtual bool send_video_message(const std::string& room_id,
+                                    const std::string& file_path) { return false; }
+
     virtual bool send_typing(const std::string& room_id, bool typing) = 0;
     virtual bool mark_read(const std::string& room_id,
                           const std::string& message_id) = 0;
+
+    // Call Support
+    virtual bool start_call(const std::string& user_id, bool is_video) { return false; }
+    virtual bool accept_call(const std::string& call_id) { return false; }
+    virtual bool end_call(const std::string& call_id) { return false; }
 
     virtual bool join_room(const std::string& room_id) = 0;
     virtual bool leave_room(const std::string& room_id) = 0;
@@ -66,6 +81,9 @@ public:
     virtual void set_user_callback(UserCallback callback) = 0;
     virtual void set_error_callback(ErrorCallback callback) = 0;
 
+    virtual void set_call_incoming_callback(CallIncomingCallback callback) { call_incoming_callback_ = callback; }
+    virtual void set_call_state_callback(CallStateCallback callback) { call_state_callback_ = callback; }
+
     virtual std::string get_protocol_name() const = 0;
     virtual std::string get_protocol_version() const = 0;
     virtual uint32_t get_capabilities() const = 0;
@@ -79,4 +97,7 @@ protected:
     RoomCallback room_callback_;
     UserCallback user_callback_;
     ErrorCallback error_callback_;
+
+    CallIncomingCallback call_incoming_callback_;
+    CallStateCallback call_state_callback_;
 };

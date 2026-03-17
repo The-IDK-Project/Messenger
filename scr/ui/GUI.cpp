@@ -14,6 +14,7 @@
 #include <QSystemTrayIcon>
 #include <QCloseEvent>
 #include <QKeyEvent>
+#include <QMessageBox>
 
 GUI::GUI(QWidget* parent) : QMainWindow(parent) {
     setup_ui();
@@ -111,6 +112,23 @@ void GUI::show_notification(const std::string& title, const std::string& message
     }
 }
 
+void GUI::show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) {
+    QMetaObject::invokeMethod(this, [this, room_id, caller_name, is_video]() {
+        QString type = is_video ? "Video" : "Voice";
+        QMessageBox::StandardButton reply = QMessageBox::question(this, "Incoming Call",
+            type + " call from " + QString::fromStdString(caller_name) + ".\nAccept?",
+            QMessageBox::Yes | QMessageBox::No);
+
+        if (reply == QMessageBox::Yes) {
+            // Logic to accept call
+            LOG_INFO("Call accepted");
+        } else {
+            // Logic to reject call
+            LOG_INFO("Call rejected");
+        }
+    }, Qt::QueuedConnection);
+}
+
 void GUI::setup_ui() {
     setWindowTitle("Unified Messenger");
     setMinimumSize(800, 600);
@@ -125,8 +143,18 @@ void GUI::setup_ui() {
     room_list_ = new QListWidget(main_splitter_);
     room_list_->setMaximumWidth(200);
     main_splitter_->addWidget(room_list_);
+
     QWidget* chat_widget = new QWidget(main_splitter_);
     QVBoxLayout* chat_layout = new QVBoxLayout(chat_widget);
+
+    // Call buttons layout
+    QHBoxLayout* call_layout = new QHBoxLayout();
+    QPushButton* voice_call_btn = new QPushButton("📞 Voice Call", chat_widget);
+    QPushButton* video_call_btn = new QPushButton("📹 Video Call", chat_widget);
+    call_layout->addWidget(voice_call_btn);
+    call_layout->addWidget(video_call_btn);
+    call_layout->addStretch();
+    chat_layout->addLayout(call_layout);
 
     chat_display_ = new QTextEdit(chat_widget);
     chat_display_->setReadOnly(true);
@@ -135,9 +163,11 @@ void GUI::setup_ui() {
     QHBoxLayout* input_layout = new QHBoxLayout();
     input_field_ = new QLineEdit(chat_widget);
     QPushButton* send_button = new QPushButton("Send", chat_widget);
+    QPushButton* circle_button = new QPushButton("⏺ Circle", chat_widget); // Video note button
 
     input_layout->addWidget(input_field_);
     input_layout->addWidget(send_button);
+    input_layout->addWidget(circle_button);
     chat_layout->addLayout(input_layout);
 
     main_splitter_->addWidget(chat_widget);
@@ -145,12 +175,34 @@ void GUI::setup_ui() {
     user_list_->setMaximumWidth(150);
     main_splitter_->addWidget(user_list_);
     main_splitter_->setSizes({200, 400, 150});
+
     status_bar_ = new QStatusBar(this);
     setStatusBar(status_bar_);
     status_bar_->showMessage("Ready");
+
     connect(room_list_, &QListWidget::itemClicked, this, &GUI::on_room_selected);
     connect(input_field_, &QLineEdit::returnPressed, this, &GUI::on_input_return_pressed);
     connect(send_button, &QPushButton::clicked, this, &GUI::on_send_message);
+
+    // Call handlers
+    connect(voice_call_btn, &QPushButton::clicked, this, [this]() {
+        if (!active_room_id_.empty() && call_handler_) {
+            call_handler_(active_room_id_, false);
+        }
+    });
+
+    connect(video_call_btn, &QPushButton::clicked, this, [this]() {
+        if (!active_room_id_.empty() && call_handler_) {
+            call_handler_(active_room_id_, true);
+        }
+    });
+
+    // Circle (Video note) handler
+    connect(circle_button, &QPushButton::clicked, this, [this]() {
+        if (!active_room_id_.empty() && video_circle_handler_) {
+            video_circle_handler_(active_room_id_);
+        }
+    });
 }
 
 void GUI::setup_menus() {
@@ -323,3 +375,19 @@ void GUI::keyPressEvent(QKeyEvent* event) {
         QMainWindow::keyPressEvent(event);
     }
 }
+
+void GUI::update_message_status(const std::string& message_id, MessageStatus status) {}
+void GUI::clear_messages() {}
+void GUI::add_room(const ChatRoom& room) {}
+void GUI::remove_room(const std::string& room_id) {}
+void GUI::update_user_presence(const std::string& user_id, bool online) {}
+void GUI::set_input_text(const std::string& text) {}
+std::string GUI::get_input_text() { return ""; }
+void GUI::clear_input() {}
+void GUI::focus_input() {}
+void GUI::refresh() {}
+void GUI::redraw() {}
+void GUI::set_title(const std::string& title) {}
+void GUI::set_theme(const std::string& theme) {}
+void GUI::set_font_size(int size) {}
+void GUI::show_help() {}

@@ -21,6 +21,7 @@ public:
     using UserCallback = std::function<void(const User&)>;
     using StatusCallback = std::function<void(const std::string& protocol, bool connected)>;
     using ErrorCallback = std::function<void(const std::string& error)>;
+    using CallIncomingCallback = std::function<void(const std::string& protocol, const std::string& call_id, const std::string& caller_id, bool is_video)>;
 
     UnifiedMessenger();
     ~UnifiedMessenger();
@@ -46,9 +47,17 @@ public:
     bool send_file(const std::string& protocol,
                   const std::string& room_id,
                   const std::string& file_path);
+    bool send_video_message(const std::string& protocol,
+                           const std::string& room_id,
+                           const std::string& file_path);
     bool mark_message_read(const std::string& protocol,
                           const std::string& room_id,
                           const std::string& message_id);
+
+    // Call API
+    bool start_call(const std::string& protocol, const std::string& user_id, bool is_video);
+    bool accept_call(const std::string& protocol, const std::string& call_id);
+    bool end_call(const std::string& protocol, const std::string& call_id);
 
     bool join_room(const std::string& protocol, const std::string& room_id);
     bool leave_room(const std::string& protocol, const std::string& room_id);
@@ -79,6 +88,7 @@ public:
     void set_user_callback(UserCallback callback);
     void set_status_callback(StatusCallback callback);
     void set_error_callback(ErrorCallback callback);
+    void set_call_incoming_callback(CallIncomingCallback callback);
 
     bool load_config(const std::string& config_path = "");
     bool save_config(const std::string& config_path = "") const;
@@ -106,13 +116,13 @@ private:
     void handle_protocol_room(const std::string& protocol, const ChatRoom& room);
     void handle_protocol_user(const std::string& protocol, const User& user);
     void handle_protocol_error(const std::string& protocol, const std::string& error);
+    void handle_protocol_call_incoming(const std::string& protocol, const std::string& call_id, const std::string& caller_id, bool is_video);
 
     void sync_worker();
     void notification_worker();
 
     std::map<std::string, std::unique_ptr<ProtocolHandler>> protocols_;
-    std::unique_ptr<DatabaseManager> database_;
-    std::unique_ptr<Config> config_;
+    // DatabaseManager and Config are singletons, access via get_instance()
 
     std::string active_room_id_;
     std::atomic<bool> initialized_{false};
@@ -123,10 +133,11 @@ private:
     UserCallback user_callback_;
     StatusCallback status_callback_;
     ErrorCallback error_callback_;
+    CallIncomingCallback call_incoming_callback_;
 
     std::thread sync_thread_;
     std::thread notification_thread_;
-    std::mutex data_mutex_;
+    mutable std::mutex data_mutex_;
 
     UnifiedMessenger(const UnifiedMessenger&) = delete;
     UnifiedMessenger& operator=(const UnifiedMessenger&) = delete;

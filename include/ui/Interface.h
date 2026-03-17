@@ -15,6 +15,8 @@ public:
                                             const std::vector<std::string>& args)>;
     using RoomSelectHandler = std::function<void(const std::string& room_id)>;
     using QuitHandler = std::function<void()>;
+    using CallHandler = std::function<void(const std::string& room_id, bool is_video)>;
+    using VideoCircleHandler = std::function<void(const std::string& room_id)>;
 
     virtual ~Interface() = default;
 
@@ -50,6 +52,10 @@ public:
     virtual void set_command_handler(CommandHandler handler) = 0;
     virtual void set_room_select_handler(RoomSelectHandler handler) = 0;
     virtual void set_quit_handler(QuitHandler handler) = 0;
+    virtual void set_call_handler(CallHandler handler) = 0;
+    virtual void set_video_circle_handler(VideoCircleHandler handler) = 0;
+
+    virtual void show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) = 0;
 
     virtual void refresh() = 0;
     virtual void redraw() = 0;
@@ -64,4 +70,6 @@ protected:
     CommandHandler command_handler_;
     RoomSelectHandler room_select_handler_;
     QuitHandler quit_handler_;
+    CallHandler call_handler_;
+    VideoCircleHandler video_circle_handler_;
 };

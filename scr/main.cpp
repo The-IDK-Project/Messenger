@@ -5,7 +5,10 @@
 #include "app/UnifiedMessenger.h"
 #include "ui/Interface.h"
 #include "ui/TUI.h"
+#ifdef USE_GUI
 #include "ui/GUI.h"
+#include <QApplication>
+#endif
 #include "utils/Logger.h"
 #include "utils/StringUtils.h"
 
@@ -49,6 +52,14 @@ struct CommandLineArgs {
 CommandLineArgs parse_arguments(int argc, char* argv[]) {
     CommandLineArgs args;
 
+#ifdef USE_GUI
+    args.use_gui = true;
+    args.use_tui = false;
+#else
+    args.use_gui = false;
+    args.use_tui = true;
+#endif
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
@@ -73,9 +84,7 @@ CommandLineArgs parse_arguments(int argc, char* argv[]) {
         } else if (arg == "--log-level" && i + 1 < argc) {
             args.log_level = argv[++i];
         } else {
-            std::cerr << "Unknown option: " << arg << "\n";
-            std::cerr << "Use --help for usage information.\n";
-            exit(1);
+            // Ignore for Qt args
         }
     }
 
@@ -105,11 +114,21 @@ void setup_logging(const CommandLineArgs& args) {
 
 std::unique_ptr<Interface> create_interface(const CommandLineArgs& args) {
     if (args.use_gui) {
+#ifdef USE_GUI
         LOG_INFO("Creating GUI interface");
         return std::make_unique<GUI>();
+#else
+        LOG_FATAL("GUI was requested but not compiled in.");
+        exit(1);
+#endif
     } else {
+#ifdef USE_TUI
         LOG_INFO("Creating TUI interface");
         return std::make_unique<TUI>();
+#else
+        LOG_FATAL("TUI was requested but not compiled in.");
+        exit(1);
+#endif
     }
 }
 
@@ -119,7 +138,6 @@ void setup_callbacks(UnifiedMessenger& app, Interface& ui) {
     });
 
     app.set_room_callback([&ui](const ChatRoom& room) {
-
         LOG_DEBUG("New room: " + room.name);
     });
 
@@ -132,14 +150,12 @@ void setup_callbacks(UnifiedMessenger& app, Interface& ui) {
     });
 
     ui.set_input_handler([&app](const std::string& input) {
-
         LOG_DEBUG("UI input: " + input);
-
         auto protocols = app.get_available_protocols();
-        auto rooms = app.get_all_rooms();
+        auto active_room = app.get_active_room();
 
-        if (!protocols.empty() && !rooms.empty()) {
-            app.send_message(protocols[0], rooms[0].id, input);
+        if (!protocols.empty() && !active_room.empty()) {
+            app.send_message(protocols[0], active_room, input);
         }
     });
 
@@ -151,10 +167,27 @@ void setup_callbacks(UnifiedMessenger& app, Interface& ui) {
         LOG_INFO("Quit requested by user");
         app.shutdown();
     });
+
+    ui.set_call_handler([&app](const std::string& room_id, bool is_video) {
+        LOG_INFO("Call requested in room: " + room_id + " (video: " + std::to_string(is_video) + ")");
+        // TODO: Call UnifiedMessenger to start call
+    });
+
+    ui.set_video_circle_handler([&app](const std::string& room_id) {
+        LOG_INFO("Video circle requested in room: " + room_id);
+        // TODO: Record and send video circle
+    });
 }
 
-int run_application(const CommandLineArgs& args) {
+int run_application(int argc, char* argv[], const CommandLineArgs& args) {
     LOG_SCOPE("main", "application_run");
+
+#ifdef USE_GUI
+    std::unique_ptr<QApplication> qapp;
+    if (args.use_gui) {
+        qapp = std::make_unique<QApplication>(argc, argv);
+    }
+#endif
 
     try {
 
@@ -232,7 +265,7 @@ int main(int argc, char* argv[]) {
     LOG_DEBUG("  Config file: " + (args.config_file.empty() ? "default" : args.config_file));
     LOG_DEBUG("  Database file: " + (args.database_file.empty() ? "default" : args.database_file));
 
-    int exit_code = run_application(args);
+    int exit_code = run_application(argc, argv, args);
 
     // Log shutdown
     if (exit_code == 0) {

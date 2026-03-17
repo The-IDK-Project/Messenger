@@ -8,7 +8,10 @@ enum class MessageType {
     TEXT = 0,
     IMAGE = 1,
     FILE = 2,
-    SYSTEM = 3
+    SYSTEM = 3,
+    VIDEO_MESSAGE = 4, // Кружки
+    VOICE_CALL = 5,    // Звонки
+    VIDEO_CALL = 6
 };
 
 enum class MessageStatus {
@@ -50,6 +53,10 @@ public:
 
     std::string get_file_url() const;
     std::string get_image_dimensions() const;
+
+    // New helper methods
+    bool is_call() const { return type == MessageType::VOICE_CALL || type == MessageType::VIDEO_CALL; }
+    bool is_video_message() const { return type == MessageType::VIDEO_MESSAGE; }
 
 private:
     void generate_id();

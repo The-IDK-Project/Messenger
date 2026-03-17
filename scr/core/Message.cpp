@@ -112,7 +112,7 @@ std::string Message::get_display_time() const {
 }
 
 std::string Message::get_file_url() const {
-    if (type != MessageType::FILE && type != MessageType::IMAGE) {
+    if (type != MessageType::FILE && type != MessageType::IMAGE && type != MessageType::VIDEO_MESSAGE) {
         return "";
     }
 
@@ -128,7 +128,7 @@ std::string Message::get_file_url() const {
 }
 
 std::string Message::get_image_dimensions() const {
-    if (type != MessageType::IMAGE) {
+    if (type != MessageType::IMAGE && type != MessageType::VIDEO_MESSAGE) {
         return "";
     }
 
