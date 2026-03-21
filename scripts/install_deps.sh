@@ -73,7 +73,7 @@ fi
 
 echo ""
 echo "Optional dependencies:"
-echo "- For GUI: Install Qt5 development packages"
+echo "- For GUI: Install Qt6 development packages"
 echo "- For Telegram: Build TDLib from source"
 echo "- For tests: Install gtest/gmock"
 

@@ -57,7 +57,6 @@ int TUI::run() {
 }
 
 void TUI::display_message(const Message& message) {
-    std::lock_guard<std::mutex> lock(mutex_);
     messages_.push_back(message);
 
     if (messages_.size() > 1000) {
@@ -70,7 +69,6 @@ void TUI::display_message(const Message& message) {
 }
 
 void TUI::set_rooms(const std::vector<ChatRoom>& rooms) {
-    std::lock_guard<std::mutex> lock(mutex_);
     rooms_ = rooms;
 
     if (active_room_id_.empty() && !rooms_.empty()) {
@@ -81,20 +79,17 @@ void TUI::set_rooms(const std::vector<ChatRoom>& rooms) {
 }
 
 void TUI::set_active_room(const std::string& room_id) {
-    std::lock_guard<std::mutex> lock(mutex_);
     active_room_id_ = room_id;
     chat_scroll_offset_ = 0;
     refresh();
 }
 
 void TUI::set_users(const std::vector<User>& users) {
-    std::lock_guard<std::mutex> lock(mutex_);
     users_ = users;
     refresh();
 }
 
 void TUI::set_connection_status(const std::string& protocol, bool connected) {
-    std::lock_guard<std::mutex> lock(mutex_);
     connection_status_[protocol] = connected;
     refresh();
 }
@@ -403,3 +398,18 @@ std::string TUI::get_message_display(const Message& message) {
         return "[" + timestamp + "] " + sender + ": " + message.content;
     }
 }
+
+void TUI::handle_resize() {}
+void TUI::show_command_palette() {}
+void TUI::show_room_selector() {}
+void TUI::toggle_user_list() {}
+void TUI::handle_command(const std::string& input) {}
+void TUI::update_message_status(const std::string& message_id, MessageStatus status) {}
+void TUI::clear_messages() {}
+void TUI::add_room(const ChatRoom& room) {}
+void TUI::remove_room(const std::string& room_id) {}
+void TUI::update_user_presence(const std::string& user_id, bool online) {}
+void TUI::show_notification(const std::string& title, const std::string& message) {}
+void TUI::set_input_text(const std::string& text) {}
+void TUI::set_title(const std::string& title) {}
+void TUI::show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) {}

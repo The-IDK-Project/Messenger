@@ -40,7 +40,7 @@ jobs:
           build-essential cmake pkg-config \
           libcurl4-openssl-dev libjsoncpp-dev \
           sqlite3 libsqlite3-dev \
-          qtbase5-dev qt5-default
+          qt6-base-dev
 
     - name: Install dependencies (Full)
       if: matrix.config == 'full'
@@ -51,7 +51,7 @@ jobs:
           libcurl4-openssl-dev libjsoncpp-dev \
           sqlite3 libsqlite3-dev \
           libncurses5-dev libncursesw5-dev \
-          qtbase5-dev qt5-default
+          qt6-base-dev
 
     - name: Configure CMake (TUI)
       if: matrix.config == 'tui'
@@ -128,7 +128,7 @@ jobs:
       if: matrix.config == 'gui'
       run: |
         brew update
-        brew install cmake pkg-config curl jsoncpp sqlite3 qt5
+        brew install cmake pkg-config curl jsoncpp sqlite3 qt6
 
     - name: Configure CMake (TUI)
       if: matrix.config == 'tui'
@@ -184,7 +184,7 @@ jobs:
     - name: Install vcpkg dependencies (GUI)
       if: matrix.config == 'gui'
       run: |
-        vcpkg install curl jsoncpp sqlite3 qt5-base
+        vcpkg install curl jsoncpp sqlite3 qt6-base
 
     - name: Configure CMake (TUI)
       if: matrix.config == 'tui'

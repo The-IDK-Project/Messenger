@@ -13,7 +13,7 @@
 #include "utils/StringUtils.h"
 
 void show_help(const std::string& program_name) {
-    std::cout << "Unified Messenger - Multi-protocol chat client\n\n";
+    std::cout << "Verita - Multi-protocol chat client\n\n";
     std::cout << "Usage: " << program_name << " [OPTIONS]\n\n";
     std::cout << "Options:\n";
     std::cout << "  --tui, -t          Start with terminal user interface (default)\n";

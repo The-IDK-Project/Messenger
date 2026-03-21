@@ -11,7 +11,7 @@
       "platform": "!windows"
     },
     {
-      "name": "qt5-base",
+      "name": "qtbase",
       "platform": "!linux"
     }
   ],
@@ -22,7 +22,7 @@
     },
     "gui": {
       "description": "Graphical user interface",
-      "dependencies": ["qt5-base"]
+      "dependencies": ["qtbase"]
     },
     "telegram": {
       "description": "Telegram protocol support",
