@@ -423,9 +423,47 @@ bool UnifiedMessenger::is_protocol_connected(const std::string& name) const {
 }
 
 bool UnifiedMessenger::send_file(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
-    // TODO: Implement file sending
-    LOG_ERROR("send_file not implemented");
-    return false;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for sending file: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for sending file: " + protocol);
+        return false;
+    }
+    return it->second->send_file(room_id, file_path);
+}
+
+bool UnifiedMessenger::send_voice_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for sending voice message: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for sending voice message: " + protocol);
+        return false;
+    }
+    // Assuming ProtocolHandler has send_voice_message
+    return it->second->send_voice_message(room_id, file_path);
+}
+
+bool UnifiedMessenger::send_video_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for sending video message: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for sending video message: " + protocol);
+        return false;
+    }
+    // Assuming ProtocolHandler has send_video_message
+    return it->second->send_video_message(room_id, file_path);
 }
 
 bool UnifiedMessenger::mark_message_read(const std::string& protocol, const std::string& room_id, const std::string& message_id) {
@@ -460,8 +498,7 @@ std::vector<User> UnifiedMessenger::get_room_users(const std::string& room_id) c
 }
 
 std::vector<User> UnifiedMessenger::search_users(const std::string& query) const {
-    // TODO: Implement
-    return {};
+    return DatabaseManager::get_instance().search_users(query);
 }
 
 std::vector<Message> UnifiedMessenger::search_messages(const std::string& query, int limit) const {
@@ -490,11 +527,8 @@ std::string UnifiedMessenger::get_setting(const std::string& key, const std::str
     // Note: DatabaseManager::get_instance() is not const-correct if used in const method unless it returns reference to non-const or mutable?
     // Actually DatabaseManager::get_instance() returns DatabaseManager&.
     // get_setting on DatabaseManager is probably not const?
-    // Let's assume we can cast constness away or just call it.
-    // Wait, get_setting in DatabaseManager is not const based on header?
     // "std::string get_setting(const std::string& key, const std::string& default_value = "");" - no const.
     // This is a problem for "get_setting(...) const" in UnifiedMessenger.
-    // I will use const_cast or better, just not mark it const? No, the header says const.
     // I will use const_cast for the singleton instance since it's a singleton.
     return const_cast<DatabaseManager&>(DatabaseManager::get_instance()).get_setting(key, default_value);
 }

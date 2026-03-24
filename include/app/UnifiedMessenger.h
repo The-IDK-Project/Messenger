@@ -47,6 +47,9 @@ public:
     bool send_file(const std::string& protocol,
                   const std::string& room_id,
                   const std::string& file_path);
+    bool send_voice_message(const std::string& protocol,
+                           const std::string& room_id,
+                           const std::string& file_path);
     bool send_video_message(const std::string& protocol,
                            const std::string& room_id,
                            const std::string& file_path);

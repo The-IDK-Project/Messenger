@@ -170,12 +170,26 @@ void setup_callbacks(UnifiedMessenger& app, Interface& ui) {
 
     ui.set_call_handler([&app](const std::string& room_id, bool is_video) {
         LOG_INFO("Call requested in room: " + room_id + " (video: " + std::to_string(is_video) + ")");
-        // TODO: Call UnifiedMessenger to start call
+        auto protocols = app.get_available_protocols();
+        if (!protocols.empty()) {
+            app.start_call(protocols[0], room_id, is_video);
+        }
     });
 
-    ui.set_video_circle_handler([&app](const std::string& room_id) {
-        LOG_INFO("Video circle requested in room: " + room_id);
-        // TODO: Record and send video circle
+    ui.set_voice_message_handler([&app](const std::string& room_id, const std::string& file_path) {
+        LOG_INFO("Voice message requested in room: " + room_id);
+        auto protocols = app.get_available_protocols();
+        if (!protocols.empty()) {
+            app.send_voice_message(protocols[0], room_id, file_path);
+        }
+    });
+
+    ui.set_video_message_handler([&app](const std::string& room_id, const std::string& file_path) {
+        LOG_INFO("Video message requested in room: " + room_id);
+        auto protocols = app.get_available_protocols();
+        if (!protocols.empty()) {
+            app.send_video_message(protocols[0], room_id, file_path);
+        }
     });
 }
 

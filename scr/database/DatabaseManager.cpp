@@ -216,6 +216,41 @@ bool DatabaseManager::store_user(const User& user) {
     }
 }
 
+std::vector<User> DatabaseManager::search_users(const std::string& query, int limit) {
+    std::vector<User> users;
+    if (!db_) return users;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string sql = "SELECT * FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT ?";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        LOG_ERROR("Failed to prepare search_users statement: " + std::string(sqlite3_errmsg(db_)));
+        return users;
+    }
+
+    std::string like_query = "%" + query + "%";
+    sqlite3_bind_text(stmt, 1, like_query.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, like_query.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, limit);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        User user;
+        user.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        user.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        user.display_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        // protocols (column 3) are stored as JSON, would need a JSON parser to properly fill
+        user.avatar_url = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int64_t last_seen_ts = sqlite3_column_int64(stmt, 5);
+        user.last_seen = std::chrono::system_clock::time_point(std::chrono::seconds(last_seen_ts));
+        users.push_back(user);
+    }
+
+    sqlite3_finalize(stmt);
+    return users;
+}
+
 bool DatabaseManager::run_migrations() {
     return Migrations::run_migrations(db_);
 }
