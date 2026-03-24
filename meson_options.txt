@@ -1,0 +1,4 @@
+option('build_gui', type: 'boolean', value: true, description: 'Build with Qt GUI')
+option('build_tui', type: 'boolean', value: false, description: 'Build with terminal UI')
+option('enable_telegram', type: 'boolean', value: false, description: 'Enable Telegram support')
+option('use_bundled_deps', type: 'boolean', value: false, description: 'Use bundled third-party dependencies')
