@@ -5,6 +5,10 @@
 #include <thread>
 #include <chrono>
 
+// OpenSSL headers
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 UnifiedMessenger::UnifiedMessenger() {
     // Singletons are managed internally
 }
@@ -20,6 +24,12 @@ bool UnifiedMessenger::initialize() {
     }
 
     LOG_INFO("Initializing Unified Messenger...");
+
+    // Initialize OpenSSL
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    LOG_INFO("OpenSSL initialized.");
 
     auto& config = Config::get_instance();
     auto& database = DatabaseManager::get_instance();
@@ -62,6 +72,11 @@ void UnifiedMessenger::shutdown() {
     disconnect_all();
 
     DatabaseManager::get_instance().shutdown();
+
+    // Cleanup OpenSSL
+    EVP_cleanup();
+    ERR_free_strings();
+    LOG_INFO("OpenSSL cleaned up.");
 
     initialized_ = false;
     LOG_INFO("Unified Messenger shutdown complete");
@@ -467,20 +482,50 @@ bool UnifiedMessenger::send_video_message(const std::string& protocol, const std
 }
 
 bool UnifiedMessenger::mark_message_read(const std::string& protocol, const std::string& room_id, const std::string& message_id) {
-    // TODO: Implement mark read
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for marking message as read: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for marking message as read: " + protocol);
+        return false;
+    }
+
+    // Notify the protocol handler to send the read receipt
+    it->second->mark_message_read(room_id, message_id);
+
+    // Update the local database
     return DatabaseManager::get_instance().update_message_status(message_id, MessageStatus::READ);
 }
 
 bool UnifiedMessenger::leave_room(const std::string& protocol, const std::string& room_id) {
-    // TODO: Implement leave room
-    LOG_ERROR("leave_room not implemented");
-    return false;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for leaving room: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for leaving room: " + protocol);
+        return false;
+    }
+    return it->second->leave_room(room_id);
 }
 
 bool UnifiedMessenger::create_room(const std::string& protocol, const std::string& name, const std::vector<std::string>& users) {
-    // TODO: Implement create room
-    LOG_ERROR("create_room not implemented");
-    return false;
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end()) {
+        LOG_ERROR("Protocol not found for creating room: " + protocol);
+        return false;
+    }
+    if (!it->second->is_connected()) {
+        LOG_ERROR("Protocol not connected for creating room: " + protocol);
+        return false;
+    }
+    return it->second->create_room(name, users);
 }
 
 void UnifiedMessenger::set_active_room(const std::string& room_id) {
@@ -488,13 +533,16 @@ void UnifiedMessenger::set_active_room(const std::string& room_id) {
 }
 
 User UnifiedMessenger::get_current_user(const std::string& protocol) const {
-    // TODO: Retrieve current user from protocol handler or DB
-    return User();
+    std::string user_id = DatabaseManager::get_instance().get_session_user_id(protocol);
+    if (user_id.empty()) {
+        LOG_WARNING("Could not find current user ID for protocol: " + protocol);
+        return User();
+    }
+    return DatabaseManager::get_instance().get_user(user_id);
 }
 
 std::vector<User> UnifiedMessenger::get_room_users(const std::string& room_id) const {
-    // TODO: Implement
-    return {};
+    return DatabaseManager::get_instance().get_users_by_room(room_id);
 }
 
 std::vector<User> UnifiedMessenger::search_users(const std::string& query) const {

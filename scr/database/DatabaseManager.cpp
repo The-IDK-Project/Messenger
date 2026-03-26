@@ -5,6 +5,7 @@
 #include "utils/StringUtils.h"
 #include <sqlite3.h>
 #include <filesystem>
+#include <json/json.h>
 
 DatabaseManager& DatabaseManager::get_instance() {
     static DatabaseManager instance;
@@ -216,13 +217,55 @@ bool DatabaseManager::store_user(const User& user) {
     }
 }
 
+User DatabaseManager::get_user(const std::string& user_id) {
+    User user;
+    if (!db_ || user_id.empty()) return user;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string sql = "SELECT id, username, display_name, protocols, avatar_url, last_seen FROM users WHERE id = ?";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        LOG_ERROR("Failed to prepare get_user statement: " + std::string(sqlite3_errmsg(db_)));
+        return user;
+    }
+
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        user.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        user.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        user.display_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+
+        // Deserialize protocols from JSON
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            std::string protocols_json = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            Json::Value protocols_array;
+            Json::Reader reader;
+            if (reader.parse(protocols_json, protocols_array) && protocols_array.isArray()) {
+                for (const auto& protocol_name : protocols_array) {
+                    user.protocols.push_back(protocol_name.asString());
+                }
+            }
+        }
+
+        user.avatar_url = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int64_t last_seen_ts = sqlite3_column_int64(stmt, 5);
+        user.last_seen = std::chrono::system_clock::time_point(std::chrono::seconds(last_seen_ts));
+    }
+
+    sqlite3_finalize(stmt);
+    return user;
+}
+
 std::vector<User> DatabaseManager::search_users(const std::string& query, int limit) {
     std::vector<User> users;
     if (!db_) return users;
 
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::string sql = "SELECT * FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT ?";
+    std::string sql = "SELECT id, username, display_name, protocols, avatar_url, last_seen FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT ?";
     sqlite3_stmt* stmt;
 
     if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
@@ -240,7 +283,19 @@ std::vector<User> DatabaseManager::search_users(const std::string& query, int li
         user.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
         user.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         user.display_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        // protocols (column 3) are stored as JSON, would need a JSON parser to properly fill
+
+        // Deserialize protocols from JSON
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            std::string protocols_json = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            Json::Value protocols_array;
+            Json::Reader reader;
+            if (reader.parse(protocols_json, protocols_array) && protocols_array.isArray()) {
+                for (const auto& protocol_name : protocols_array) {
+                    user.protocols.push_back(protocol_name.asString());
+                }
+            }
+        }
+
         user.avatar_url = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         int64_t last_seen_ts = sqlite3_column_int64(stmt, 5);
         user.last_seen = std::chrono::system_clock::time_point(std::chrono::seconds(last_seen_ts));
@@ -248,6 +303,23 @@ std::vector<User> DatabaseManager::search_users(const std::string& query, int li
     }
 
     sqlite3_finalize(stmt);
+    return users;
+}
+
+std::vector<User> DatabaseManager::get_users_by_room(const std::string& room_id) {
+    std::vector<User> users;
+    ChatRoom room = get_room(room_id);
+    if (room.id.empty()) {
+        return users;
+    }
+
+    Json::Value participants;
+    Json::Reader reader;
+    if (reader.parse(room.participants, participants)) {
+        for (const auto& id : participants) {
+            users.push_back(get_user(id.asString()));
+        }
+    }
     return users;
 }
 

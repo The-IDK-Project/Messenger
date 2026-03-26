@@ -13,6 +13,7 @@ add_project_arguments('-DPROJECT_SOURCE_DIR="' + meson.project_source_root() + '
 thread_dep = dependency('threads')
 jsoncpp_dep = dependency('jsoncpp', fallback: ['jsoncpp', 'jsoncpp_dep'])
 sqlite3_dep = dependency('sqlite3', fallback: ['sqlite3', 'sqlite3_dep'])
+openssl_dep = dependency('openssl')
 
 # Qt6
 qt6_dep = dependency('qt6', modules: ['Core', 'Widgets', 'Network'], required: get_option('build_gui'))
@@ -59,7 +60,7 @@ main_source = files('scr/main.cpp')
 core_lib = static_library('UnifiedMessengerCore',
   core_sources,
   include_directories: 'include',
-  dependencies: [thread_dep, jsoncpp_dep, sqlite3_dep])
+  dependencies: [thread_dep, jsoncpp_dep, sqlite3_dep, openssl_dep])
 
 # ============================================================================
 # GUI Qt6

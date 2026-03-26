@@ -32,6 +32,7 @@ public:
     User get_user(const std::string& user_id);
     std::vector<User> search_users(const std::string& query, int limit = 50);
     std::vector<User> get_users_by_protocol(const std::string& protocol);
+    std::vector<User> get_users_by_room(const std::string& room_id);
     bool update_user_presence(const std::string& user_id, bool online);
     bool delete_user(const std::string& user_id);
 
