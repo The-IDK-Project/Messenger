@@ -2,15 +2,15 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "app/UnifiedMessenger.h"
-#include "ui/Interface.h"
-#include "ui/TUI.h"
+#include "../include/app/UnifiedMessenger.h"
+#include "../include/ui/Interface.h"
+#include "../include/ui/TUI.h"
 #ifdef USE_GUI
-#include "ui/GUI.h"
+#include "../include/ui/GUI.h"
 #include <QApplication>
 #endif
-#include "utils/Logger.h"
-#include "utils/StringUtils.h"
+#include "../include/utils/Logger.h"
+#include "../include/utils/StringUtils.h"
 
 void show_help(const std::string& program_name) {
     std::cout << "Verita - Multi-protocol chat client\n\n";

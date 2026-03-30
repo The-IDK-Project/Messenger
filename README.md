@@ -1,17 +1,15 @@
-# Messenger 🚀
-
 # Messenger - Multi-Protocol Chat Client
 
 ![C++](https://img.shields.io/badge/C++-17+-blue.svg)
-![CMake](https://img.shields.io/badge/CMake-3.16+-red.svg)
+![Meson](https://img.shields.io/badge/Meson-0.60+-purple.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
 
-A modern, unified chat client that brings together Matrix, IRC, and Telegram in one seamless interface. Built with C++ for performance and reliability.
+A modern, unified chat client that brings together Matrix and IRC in one seamless interface. Built with C++ for performance and reliability.
 
-## ✨ Features
+## Features
 
-- **Multi-Protocol Support**: Connect to Matrix, IRC, and Telegram simultaneously
+- **Multi-Protocol Support**: Connect to Matrix and IRC simultaneously
 - **Unified Inbox**: View all messages from different protocols in one place
 - **Cross-Platform**: Runs on Linux, macOS, and Windows
 - **SQLite Database**: Local message history and user data storage
@@ -20,20 +18,20 @@ A modern, unified chat client that brings together Matrix, IRC, and Telegram in 
 - **End-to-End Encryption**: Secure communications where supported
 - **Customizable**: Themes, keybindings, and protocol-specific settings
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 ```bash
 # Ubuntu/Debian
-sudo apt-get install build-essential cmake pkg-config \
+sudo apt-get install build-essential meson ninja-build pkg-config \
     libcurl4-openssl-dev libjsoncpp-dev sqlite3 libsqlite3-dev \
     libncurses5-dev libncursesw5-dev
 
 # macOS
-brew install cmake pkg-config curl jsoncpp sqlite3 ncurses
+brew install meson ninja pkg-config curl jsoncpp sqlite3 ncurses
 
 # Fedora
-sudo dnf install gcc-c++ cmake pkgconfig \
+sudo dnf install gcc-c++ meson ninja-build pkgconfig \
     libcurl-devel jsoncpp-devel sqlite-devel ncurses-devel
 ```
 
@@ -42,14 +40,14 @@ sudo dnf install gcc-c++ cmake pkgconfig \
 ```
 git clone https://github.com/The-IDK-Project/Messenger.git
 cd Messenger
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-sudo make install  
+meson setup build
+cd build
+ninja
+sudo ninja install
 ```
 ### Run
 ```
-./super-duper-giggle
+./unified-messenger
 ```
 
 ### Documentation
@@ -78,15 +76,10 @@ access_token = your_token
 server = irc.libera.chat
 port = 6667
 nickname = your_nick
-
-[telegram]
-api_id = your_api_id
-api_hash = your_api_hash
-Protocol Setup
+```
+### Protocol Setup
 Matrix: Get access token from Element client settings
 IRC: Just provide server and nickname
-Telegram: Get API credentials from https://my.telegram.org
-```
 
 # Project Structure
 ```
@@ -96,24 +89,19 @@ unified-messenger/
 ├── tests/                  # Unit and integration tests
 ├── config/                 # Configuration files
 ├── docs/                   # Documentation
-└── third_party/            # External dependencies
+└── subprojects/            # External dependencies (via Meson wraps)
 ```
 # Advanced Features
 ### Build Options
 ```
 # With GUI (Qt)
-cmake .. -DBUILD_GUI=ON
-
-# With Telegram support (TDLib)
-cmake .. -DENABLE_TELEGRAM=ON
+meson setup build -Dbuild_gui=true
 
 # Debug build with tests
+meson setup build -Dbuildtype=debug -Dbuild_tests=true
 ```
-```
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 Database Management
 Messages are stored in SQLite at ~/.local/share/unified-messenger/messages.db
-```
 
 # Contributing
 We welcome contributions! Please see our Contributing Guide for details.
@@ -137,10 +125,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
     Libera Chat for IRC services
 
-    Telegram for their API
-
-    TDLib for Telegram integration
-
     All our wonderful contributors
 
 # Chat on matrix: #theidkteam:matrix.org
@@ -163,18 +147,6 @@ This directory contains third-party libraries used by Unified Messenger.
 - **Purpose**: Embedded database engine
 - **Usage**: Built as static library
 
-### TDLib (Telegram Database Library)
-- **Version**: 1.8.0
-- **License**: Boost Software License 1.0
-- **Purpose**: Telegram protocol implementation
-- **Usage**: Optional, built when Telegram support is enabled
-
 ## Management
 
-### Download Dependencies
-```bash
-# Basic dependencies (JSON + SQLite)
-./scripts/download_deps.sh
-
-# With Telegram support
-./scripts/download_deps.sh --with-telegram
+Dependencies are managed via Meson's wrap system. See the `subprojects` directory.
