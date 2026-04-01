@@ -32,8 +32,8 @@ void show_help(const std::string& program_name) {
 }
 
 void show_version() {
-    std::cout << "Unified Messenger v1.0.0\n";
-    std::cout << "Multi-protocol chat client for Matrix, IRC, and Telegram\n";
+    std::cout << "Unified Messenger Alpha test version 1.0.0\n";
+    std::cout << "Multi-protocol chat client for Matrix, IRC, Telegram is not support on that time\n";
     std::cout << "Built on " << __DATE__ << " " << __TIME__ << "\n";
 }
 

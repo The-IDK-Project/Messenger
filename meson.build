@@ -12,14 +12,28 @@ add_project_arguments('-DPROJECT_SOURCE_DIR="' + meson.project_source_root() + '
 # ============================================================================
 thread_dep = dependency('threads')
 jsoncpp_dep = dependency('jsoncpp', fallback: ['jsoncpp', 'jsoncpp_dep'])
-sqlite3_dep = dependency('sqlite3', fallback: ['sqlite3', 'sqlite3_dep'])
+sqlite3_dep = dependency('sqlite3', fallback: ['sqlite3', 'sqlite3_dep'], required: true)
 openssl_dep = dependency('openssl')
+inc = include_directories('include')
 
 # Qt6
-qt6_dep = dependency('qt6', modules: ['Core', 'Widgets', 'Network'], required: get_option('build_gui'))
+cpp = meson.get_compiler('cpp')
 
-# ncurses for TUI
-ncurses_dep = dependency('ncurses', required: get_option('build_tui') and host_machine.system() != 'windows')
+vcpkg_inc = 'D:/.vspgk/vspgk/installed/x64-windows/include'
+vcpkg_lib_dir = 'D:/.vspgk/vspgk/installed/x64-windows/lib'
+
+qt6_dep = declare_dependency(
+  include_directories: include_directories(vcpkg_inc),
+  dependencies: [
+    cpp.find_library('Qt6Core', dirs: vcpkg_lib_dir),
+    cpp.find_library('Qt6Network', dirs: vcpkg_lib_dir),
+    cpp.find_library('Qt6Widgets', dirs: vcpkg_lib_dir),
+    cpp.find_library('Qt6Gui', dirs: vcpkg_lib_dir)
+  ]
+)
+
+# ncurses for TUI (ONLY FOR UNIX Base or Linux)
+# ncurses_dep = dependency('ncurses', required: get_option('build_tui') and host_machine.system() != 'windows')
 
 
 # ============================================================================
@@ -34,10 +48,9 @@ core_sources = files(
   'scr/utils/StringUtils.cpp',
   'scr/database/DatabaseManager.cpp',
   'scr/database/Migrations.cpp',
-  'scr/network/Socket.cpp',
   'scr/protocols/ProtocolHandler.cpp',
-  'scr/protocols/ProtocolFactory.cpp',
-  'scr/app/UnifiedMessenger.cpp'
+  'scr/app/UnifiedMessenger.cpp',
+  'scr/platform/ScreenCapturer.cpp'
 )
 
 gui_sources = files(
@@ -47,46 +60,43 @@ gui_sources = files(
   'scr/ui/Interface.cpp'
 )
 
-tui_sources = files(
-  'scr/ui/TUI.cpp',
-  'scr/ui/Interface.cpp'
-)
+#tui_sources = files(
+#  'scr/ui/TUI.cpp',
+#  'scr/ui/Interface.cpp'
+#)
 
 main_source = files('scr/main.cpp')
 
 # ============================================================================
 # Core
 # ============================================================================
-core_lib = static_library('UnifiedMessengerCore',
-  core_sources,
-  include_directories: 'include',
-  dependencies: [thread_dep, jsoncpp_dep, sqlite3_dep, openssl_dep])
-
+UnifiedMessengerCore = static_library('UnifiedMessengerCore',
+                                      core_sources,
+                                      include_directories: include_directories('include'),
+                                      dependencies: [sqlite3_dep, openssl_dep]
+)
 # ============================================================================
 # GUI Qt6
 # ============================================================================
-if get_option('build_gui')
-  executable('UnifiedMessenger_GUI',
-    main_source,
-    gui_sources,
-    dependencies: [core_lib, qt6_dep],
-    cpp_args: ['-DUSE_GUI'],
-    link_with: core_lib)
-endif
+executable('UnifiedMessenger_GUI',
+           'scr/main.cpp',
+           dependencies: [qt6_dep, sqlite3_dep],
+           link_with: UnifiedMessengerCore
+)
 
 # ============================================================================
 # TUI
 # ============================================================================
-if get_option('build_tui')
-  tui_deps = [core_lib]
-  if host_machine.system() != 'windows'
-    tui_deps += ncurses_dep
-  endif
+# if get_option('build_tui')
+#  tui_deps = [core_lib]
+#  if host_machine.system() != 'windows'
+#    tui_deps += ncurses_dep
+#  endif
 
-  executable('UnifiedMessenger_TUI',
-    main_source,
-    tui_sources,
-    dependencies: tui_deps,
-    cpp_args: ['-DUSE_TUI'],
-    link_with: core_lib)
-endif
+#  executable('UnifiedMessenger_TUI',
+#    main_source,
+#    tui_sources,
+#    dependencies: tui_deps,
+#    cpp_args: ['-DUSE_TUI'],
+#    link_with: core_lib)
+# endif

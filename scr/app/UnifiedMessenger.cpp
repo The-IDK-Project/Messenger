@@ -4,6 +4,7 @@
 #include "utils/StringUtils.h"
 #include <thread>
 #include <chrono>
+#include <mutex>
 
 // OpenSSL headers
 #include <openssl/ssl.h>
@@ -419,12 +420,30 @@ std::string UnifiedMessenger::get_version() const {
 }
 
 std::vector<std::string> UnifiedMessenger::get_supported_protocols() const {
-    return {"matrix", "irc", "telegram"};
+    return {"matrix", "irc"};
 }
 
 bool UnifiedMessenger::is_ready() const {
     return initialized_ && DatabaseManager::get_instance().is_initialized();
 }
+
+// Screen Share API
+bool UnifiedMessenger::start_screen_share(const std::string& protocol, const std::string& call_id, int screen_id) {
+    LOG_INFO("Starting screen share for call " + call_id + " on screen " + std::to_string(screen_id));
+    // Platform-specific implementation needed
+    return false;
+}
+
+bool UnifiedMessenger::stop_screen_share(const std::string& protocol, const std::string& call_id) {
+    LOG_INFO("Stopping screen share for call " + call_id);
+    // Platform-specific implementation needed
+    return false;
+}
+
+std::vector<ScreenCapturer::Screen> UnifiedMessenger::get_available_screens() {
+    return ScreenCapturer::get_screens();
+}
+
 
 // Missing implementations
 

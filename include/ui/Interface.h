@@ -7,6 +7,7 @@
 #include "../core/Message.h"
 #include "../core/User.h"
 #include "../core/ChatRoom.h"
+#include "../platform/ScreenCapturer.h"
 
 class Interface {
 public:
@@ -18,6 +19,7 @@ public:
     using CallHandler = std::function<void(const std::string& room_id, bool is_video)>;
     using VoiceMessageHandler = std::function<void(const std::string& room_id, const std::string& file_path)>;
     using VideoMessageHandler = std::function<void(const std::string& room_id, const std::string& file_path)>;
+    using ScreenShareHandler = std::function<void(const std::string& call_id, int screen_id)>;
 
     virtual ~Interface() = default;
 
@@ -56,8 +58,10 @@ public:
     virtual void set_call_handler(CallHandler handler) = 0;
     virtual void set_voice_message_handler(VoiceMessageHandler handler) = 0;
     virtual void set_video_message_handler(VideoMessageHandler handler) = 0;
+    virtual void set_screen_share_handler(ScreenShareHandler handler) = 0;
 
     virtual void show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) = 0;
+    virtual void show_screen_selection(const std::vector<ScreenCapturer::Screen>& screens) = 0;
 
     virtual void refresh() = 0;
     virtual void redraw() = 0;
@@ -75,4 +79,5 @@ protected:
     CallHandler call_handler_;
     VoiceMessageHandler voice_message_handler_;
     VideoMessageHandler video_message_handler_;
+    ScreenShareHandler screen_share_handler_;
 };

@@ -13,6 +13,7 @@
 #include "../core/Config.h"
 #include "../protocols/ProtocolHandler.h"
 #include "../database/DatabaseManager.h"
+#include "../platform/ScreenCapturer.h"
 
 class UnifiedMessenger {
 public:
@@ -61,6 +62,11 @@ public:
     bool start_call(const std::string& protocol, const std::string& user_id, bool is_video);
     bool accept_call(const std::string& protocol, const std::string& call_id);
     bool end_call(const std::string& protocol, const std::string& call_id);
+
+    // Screen Share API
+    bool start_screen_share(const std::string& protocol, const std::string& call_id, int screen_id);
+    bool stop_screen_share(const std::string& protocol, const std::string& call_id);
+    std::vector<ScreenCapturer::Screen> get_available_screens();
 
     bool join_room(const std::string& protocol, const std::string& room_id);
     bool leave_room(const std::string& protocol, const std::string& room_id);
