@@ -1,5 +1,6 @@
 #include "ui/widgets/RoomListWidget.h"
 #include "utils/Logger.h"
+#include <format>
 
 // PImpl
 class RoomListWidget::Impl {
@@ -23,23 +24,22 @@ RoomListWidget::~RoomListWidget() {
 
 void RoomListWidget::add_room(const ChatRoom& room) {
     impl_->rooms.push_back(room);
-    LOG_DEBUG("Added room: " + room.name);
+    LOG_DEBUG(std::format("Added room: {}", room.name));
 }
 
 void RoomListWidget::update_room(const ChatRoom& room) {
     for (auto& r : impl_->rooms) {
         if (r.id == room.id) {
             r = room;
-            LOG_DEBUG("Updated room: " + room.name);
+            LOG_DEBUG(std::format("Updated room: {}", room.name));
             return;
         }
     }
 }
 
 void RoomListWidget::remove_room(const std::string& room_id) {
-    impl_->rooms.erase(std::remove_if(impl_->rooms.begin(), impl_->rooms.end(),
-        [&](const ChatRoom& r) { return r.id == room_id; }), impl_->rooms.end());
-    LOG_DEBUG("Removed room: " + room_id);
+    std::erase_if(impl_->rooms, [&](const ChatRoom& r) { return r.id == room_id; });
+    LOG_DEBUG(std::format("Removed room: {}", room_id));
 }
 
 void RoomListWidget::clear_rooms() {

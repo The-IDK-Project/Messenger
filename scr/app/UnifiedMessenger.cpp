@@ -5,6 +5,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <format>
 
 // OpenSSL headers
 #include <openssl/ssl.h>
@@ -47,9 +48,8 @@ bool UnifiedMessenger::initialize() {
 
     initialize_protocols();
 
-    shutdown_requested_ = false;
-    sync_thread_ = std::thread(&UnifiedMessenger::sync_worker, this);
-    notification_thread_ = std::thread(&UnifiedMessenger::notification_worker, this);
+    sync_thread_ = std::jthread(&UnifiedMessenger::sync_worker, this);
+    notification_thread_ = std::jthread(&UnifiedMessenger::notification_worker, this);
 
     initialized_ = true;
     LOG_INFO("Unified Messenger initialized successfully");
@@ -61,14 +61,11 @@ void UnifiedMessenger::shutdown() {
 
     LOG_INFO("Shutting down Unified Messenger...");
 
-    shutdown_requested_ = true;
+    sync_thread_.request_stop();
+    notification_thread_.request_stop();
 
-    if (sync_thread_.joinable()) {
-        sync_thread_.join();
-    }
-    if (notification_thread_.joinable()) {
-        notification_thread_.join();
-    }
+    sync_thread_.join();
+    notification_thread_.join();
 
     disconnect_all();
 
@@ -86,15 +83,15 @@ void UnifiedMessenger::shutdown() {
 bool UnifiedMessenger::add_protocol(const std::string& name, std::unique_ptr<ProtocolHandler> handler) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
-    if (protocols_.find(name) != protocols_.end()) {
-        LOG_WARNING("Protocol already exists: " + name);
+    if (protocols_.contains(name)) {
+        LOG_WARNING(std::format("Protocol already exists: {}", name));
         return false;
     }
 
     protocols_[name] = std::move(handler);
     setup_protocol_callbacks(name);
 
-    LOG_INFO("Protocol added: " + name);
+    LOG_INFO(std::format("Protocol added: {}", name));
     return true;
 }
 
@@ -103,7 +100,7 @@ bool UnifiedMessenger::remove_protocol(const std::string& name) {
 
     auto it = protocols_.find(name);
     if (it == protocols_.end()) {
-        LOG_WARNING("Protocol not found: " + name);
+        LOG_WARNING(std::format("Protocol not found: {}", name));
         return false;
     }
 
@@ -112,7 +109,7 @@ bool UnifiedMessenger::remove_protocol(const std::string& name) {
     }
 
     protocols_.erase(it);
-    LOG_INFO("Protocol removed: " + name);
+    LOG_INFO(std::format("Protocol removed: {}", name));
     return true;
 }
 
@@ -121,25 +118,25 @@ bool UnifiedMessenger::connect_protocol(const std::string& name) {
 
     auto it = protocols_.find(name);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found: " + name);
+        LOG_ERROR(std::format("Protocol not found: {}", name));
         return false;
     }
 
     if (it->second->is_connected()) {
-        LOG_WARNING("Protocol already connected: " + name);
+        LOG_WARNING(std::format("Protocol already connected: {}", name));
         return true;
     }
 
     bool result = it->second->connect();
     if (result) {
-        LOG_INFO("Protocol connected: " + name);
+        LOG_INFO(std::format("Protocol connected: {}", name));
         if (status_callback_) {
             status_callback_(name, true);
         }
     } else {
-        LOG_ERROR("Failed to connect protocol: " + name);
+        LOG_ERROR(std::format("Failed to connect protocol: {}", name));
         if (error_callback_) {
-            error_callback_("Failed to connect to " + name);
+            error_callback_(std::format("Failed to connect to {}", name));
         }
     }
 
@@ -151,17 +148,17 @@ bool UnifiedMessenger::disconnect_protocol(const std::string& name) {
 
     auto it = protocols_.find(name);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found: " + name);
+        LOG_ERROR(std::format("Protocol not found: {}", name));
         return false;
     }
 
     if (!it->second->is_connected()) {
-        LOG_WARNING("Protocol not connected: " + name);
+        LOG_WARNING(std::format("Protocol not connected: {}", name));
         return true;
     }
 
     it->second->disconnect();
-    LOG_INFO("Protocol disconnected: " + name);
+    LOG_INFO(std::format("Protocol disconnected: {}", name));
 
     if (status_callback_) {
         status_callback_(name, false);
@@ -181,7 +178,7 @@ void UnifiedMessenger::connect_all() {
 
     for (auto& [name, handler] : protocols_) {
         if (!handler->is_connected()) {
-            LOG_INFO("Auto-connecting to: " + name);
+            LOG_INFO(std::format("Auto-connecting to: {}", name));
             handler->connect();
         }
     }
@@ -226,12 +223,12 @@ bool UnifiedMessenger::send_message(const std::string& protocol,
 
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found: " + protocol);
+        LOG_ERROR(std::format("Protocol not found: {}", protocol));
         return false;
     }
 
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected: {}", protocol));
         return false;
     }
 
@@ -262,7 +259,7 @@ bool UnifiedMessenger::join_room(const std::string& protocol, const std::string&
 
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found: " + protocol);
+        LOG_ERROR(std::format("Protocol not found: {}", protocol));
         return false;
     }
 
@@ -332,7 +329,7 @@ void UnifiedMessenger::initialize_protocols() {
             handler->set_config("password", password);
 
             protocols_[protocol_name] = std::move(handler);
-            LOG_INFO("Initialized protocol: " + protocol_name);
+            LOG_INFO(std::format("Initialized protocol: {}", protocol_name));
         }
     }
 }
@@ -363,7 +360,7 @@ void UnifiedMessenger::handle_protocol_message(const std::string& protocol, cons
         message_callback_(message);
     }
 
-    LOG_DEBUG("Message received from " + protocol + ": " + message.content.substr(0, 50) + "...");
+    LOG_DEBUG(std::format("Message received from {}: {}...", protocol, message.content.substr(0, 50)));
 }
 
 void UnifiedMessenger::handle_protocol_room(const std::string& protocol, const ChatRoom& room) {
@@ -372,7 +369,7 @@ void UnifiedMessenger::handle_protocol_room(const std::string& protocol, const C
         room_callback_(room);
     }
 
-    LOG_DEBUG("Room update from " + protocol + ": " + room.name);
+    LOG_DEBUG(std::format("Room update from {}: {}", protocol, room.name));
 }
 
 void UnifiedMessenger::handle_protocol_user(const std::string& protocol, const User& user) {
@@ -381,36 +378,36 @@ void UnifiedMessenger::handle_protocol_user(const std::string& protocol, const U
         user_callback_(user);
     }
 
-    LOG_DEBUG("User update from " + protocol + ": " + user.get_best_name());
+    LOG_DEBUG(std::format("User update from {}: {}", protocol, user.get_best_name()));
 }
 
 void UnifiedMessenger::handle_protocol_error(const std::string& protocol, const std::string& error) {
-    LOG_ERROR("Protocol error (" + protocol + "): " + error);
+    LOG_ERROR(std::format("Protocol error ({}): {}", protocol, error));
 
     if (error_callback_) {
-        error_callback_("[" + protocol + "] " + error);
+        error_callback_(std::format("[{}] {}", protocol, error));
     }
 }
 
-void UnifiedMessenger::sync_worker() {
-    while (!shutdown_requested_) {
+void UnifiedMessenger::sync_worker(std::stop_token stop_token) {
+    while (!stop_token.stop_requested()) {
         std::this_thread::sleep_for(std::chrono::seconds(30));
 
-        if (shutdown_requested_) break;
+        if (stop_token.stop_requested()) break;
 
         try {
             sync_all();
         } catch (const std::exception& e) {
-            LOG_ERROR("Sync worker error: " + std::string(e.what()));
+            LOG_ERROR(std::format("Sync worker error: {}", e.what()));
         }
     }
 }
 
-void UnifiedMessenger::notification_worker() {
-    while (!shutdown_requested_) {
+void UnifiedMessenger::notification_worker(std::stop_token stop_token) {
+    while (!stop_token.stop_requested()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        if (shutdown_requested_) break;
+        if (stop_token.stop_requested()) break;
         // Logic for notifications would go here
     }
 }
@@ -429,13 +426,13 @@ bool UnifiedMessenger::is_ready() const {
 
 // Screen Share API
 bool UnifiedMessenger::start_screen_share(const std::string& protocol, const std::string& call_id, int screen_id) {
-    LOG_INFO("Starting screen share for call " + call_id + " on screen " + std::to_string(screen_id));
+    LOG_INFO(std::format("Starting screen share for call {} on screen {}", call_id, screen_id));
     // Platform-specific implementation needed
     return false;
 }
 
 bool UnifiedMessenger::stop_screen_share(const std::string& protocol, const std::string& call_id) {
-    LOG_INFO("Stopping screen share for call " + call_id);
+    LOG_INFO(std::format("Stopping screen share for call {}", call_id));
     // Platform-specific implementation needed
     return false;
 }
@@ -460,11 +457,11 @@ bool UnifiedMessenger::send_file(const std::string& protocol, const std::string&
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for sending file: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for sending file: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for sending file: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for sending file: {}", protocol));
         return false;
     }
     return it->second->send_file(room_id, file_path);
@@ -474,11 +471,11 @@ bool UnifiedMessenger::send_voice_message(const std::string& protocol, const std
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for sending voice message: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for sending voice message: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for sending voice message: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for sending voice message: {}", protocol));
         return false;
     }
     // Assuming ProtocolHandler has send_voice_message
@@ -489,11 +486,11 @@ bool UnifiedMessenger::send_video_message(const std::string& protocol, const std
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for sending video message: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for sending video message: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for sending video message: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for sending video message: {}", protocol));
         return false;
     }
     // Assuming ProtocolHandler has send_video_message
@@ -504,11 +501,11 @@ bool UnifiedMessenger::mark_message_read(const std::string& protocol, const std:
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for marking message as read: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for marking message as read: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for marking message as read: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for marking message as read: {}", protocol));
         return false;
     }
 
@@ -523,11 +520,11 @@ bool UnifiedMessenger::leave_room(const std::string& protocol, const std::string
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for leaving room: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for leaving room: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for leaving room: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for leaving room: {}", protocol));
         return false;
     }
     return it->second->leave_room(room_id);
@@ -537,11 +534,11 @@ bool UnifiedMessenger::create_room(const std::string& protocol, const std::strin
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
-        LOG_ERROR("Protocol not found for creating room: " + protocol);
+        LOG_ERROR(std::format("Protocol not found for creating room: {}", protocol));
         return false;
     }
     if (!it->second->is_connected()) {
-        LOG_ERROR("Protocol not connected for creating room: " + protocol);
+        LOG_ERROR(std::format("Protocol not connected for creating room: {}", protocol));
         return false;
     }
     return it->second->create_room(name, users);
@@ -554,7 +551,7 @@ void UnifiedMessenger::set_active_room(const std::string& room_id) {
 User UnifiedMessenger::get_current_user(const std::string& protocol) const {
     std::string user_id = DatabaseManager::get_instance().get_session_user_id(protocol);
     if (user_id.empty()) {
-        LOG_WARNING("Could not find current user ID for protocol: " + protocol);
+        LOG_WARNING(std::format("Could not find current user ID for protocol: {}", protocol));
         return User();
     }
     return DatabaseManager::get_instance().get_user(user_id);

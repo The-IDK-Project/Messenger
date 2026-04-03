@@ -127,15 +127,14 @@ private:
     void handle_protocol_error(const std::string& protocol, const std::string& error);
     void handle_protocol_call_incoming(const std::string& protocol, const std::string& call_id, const std::string& caller_id, bool is_video);
 
-    void sync_worker();
-    void notification_worker();
+    void sync_worker(std::stop_token stop_token);
+    void notification_worker(std::stop_token stop_token);
 
     std::map<std::string, std::unique_ptr<ProtocolHandler>> protocols_;
     // DatabaseManager and Config are singletons, access via get_instance()
 
     std::string active_room_id_;
     std::atomic<bool> initialized_{false};
-    std::atomic<bool> shutdown_requested_{false};
 
     MessageCallback message_callback_;
     RoomCallback room_callback_;
@@ -144,8 +143,8 @@ private:
     ErrorCallback error_callback_;
     CallIncomingCallback call_incoming_callback_;
 
-    std::thread sync_thread_;
-    std::thread notification_thread_;
+    std::jthread sync_thread_;
+    std::jthread notification_thread_;
     mutable std::mutex data_mutex_;
 
     UnifiedMessenger(const UnifiedMessenger&) = delete;
