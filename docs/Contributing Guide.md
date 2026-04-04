@@ -14,7 +14,7 @@ Push: git push origin The-IDK-Project/super-duper-giggle
 Open Pull Request
 
 # Code Standards
-C++17 with Google Style Guide
+C++23 with Google Style Guide
 
 4 spaces indentation
 
@@ -32,19 +32,7 @@ docs: update api documentation
 ```
 Types: ```feat```, ```fix```, ```docs```, ```style```, ```refactor```, ```test```, ```chore```
 
-# Testing
-```
-# Run all tests
-cd build && ctest
 
-# Run specific test
-./tests/unit/test_database
-
-# Code coverage
-cmake .. -DBUILD_COVERAGE=ON
-
-make coverage
-```
 Pull Request Process
 
 Update documentation if needed
