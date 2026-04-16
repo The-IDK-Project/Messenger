@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "../include/app/UnifiedMessenger.h"
+#include "../include/app/Verita.h"
 #include "../include/ui/Interface.h"
 #include "../include/ui/TUI.h"
 #ifdef USE_GUI

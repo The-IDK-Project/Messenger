@@ -5,6 +5,17 @@
 #include <array>
 #include <cstdint>
 
+#include <mbedtls/sha256.h>
+#include <mbedtls/sha1.h>
+#include <mbedtls/md.h>
+#include <mbedtls/aes.h>
+#include <mbedtls/rsa.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/base64.h>
+#include <mbedtls/error.h>
+
 class Crypto {
 public:
     static std::string sha256(const std::string& data);
@@ -14,7 +25,7 @@ public:
 
     static std::string encrypt_aes256(const std::string& data, const std::string& key);
     static std::string decrypt_aes256(const std::string& encrypted_data, const std::string& key);
-    static std::string encrypt_rsa(const std::string& data, const std::string& public_key);
+    static std::string encrypt_rsa(const stds::string& data, const std::string& public_key);
     static std::string decrypt_rsa(const std::string& encrypted_data, const std::string& private_key);
 
     static std::string generate_aes_key();
@@ -46,7 +57,4 @@ public:
 
 private:
     Crypto() = delete;
-    static void initialize_crypto();
-    static void cleanup_crypto();
-    static bool crypto_initialized_;
 };
