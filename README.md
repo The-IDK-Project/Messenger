@@ -1,6 +1,6 @@
 # Messenger - Multi-Protocol Chat Client
 
-![C++](https://img.shields.io/badge/C++-17+-blue.svg)
+![C++](https://img.shields.io/badge/C++-20+-pink.svg)
 ![Meson](https://img.shields.io/badge/Meson-0.60+-purple.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
