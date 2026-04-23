@@ -1,0 +1,7 @@
+[wrap-git]
+directory = mtxclient
+url = https://github.com/Nheko-Reborn/mtxclient.git
+revision = master
+
+[provide]
+matrix = mtxclient
