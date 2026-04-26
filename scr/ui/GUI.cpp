@@ -394,3 +394,7 @@ void GUI::set_theme(const std::string& theme) {}
 void GUI::set_font_size(int size) {}
 void GUI::show_help() {}
 void GUI::apply_theme(const std::string& theme) {}
+void GUI::set_input_handler(InputHandler handler) { Interface::set_input_handler(std::move(handler)); }
+void GUI::set_command_handler(CommandHandler handler) { Interface::set_command_handler(std::move(handler)); }
+void GUI::set_room_select_handler(RoomSelectHandler handler) { Interface::set_room_select_handler(std::move(handler)); }
+void GUI::set_quit_handler(QuitHandler handler) { Interface::set_quit_handler(std::move(handler)); }

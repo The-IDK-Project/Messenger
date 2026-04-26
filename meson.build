@@ -6,6 +6,9 @@ project('Verita', 'cpp',
 # Options
 # ============================================================================
 add_project_arguments('-DPROJECT_SOURCE_DIR="' + meson.project_source_root() + '"', language: 'cpp')
+build_gui = get_option('build_gui')
+build_tui = get_option('build_tui')
+cpp = meson.get_compiler('cpp')
 
 # ============================================================================
 # Dependencies
@@ -15,15 +18,32 @@ jsoncpp_dep = dependency('jsoncpp', fallback: ['jsoncpp', 'jsoncpp_dep'])
 sqlite3_dep = dependency('sqlite3', fallback: ['sqlite3', 'sqlite3_dep'], required: true)
 mtxclient_dep = dependency('mtxclient', fallback: ['mtxclient', 'matrix_client_dep'])
 inc = include_directories('include')
-qt6_core = dependency('Qt6Core', method: 'cmake', required: true)
-qt6_gui = dependency('Qt6Gui', method: 'cmake', required: true)
-qt6_widgets = dependency('Qt6Widgets', method: 'cmake', required: true)
-qt6_network = dependency('Qt6Network', method: 'cmake', required: true)
+qt6_dep = []
+qt_moc = disabler()
 
-qt6_dep = [qt6_core, qt6_gui, qt6_widgets, qt6_network]
-qt_qmake = find_program('qmake6', 'qmake', required: true)
-qt_host_bins = run_command(qt_qmake, '-query', 'QT_HOST_BINS', check: true).stdout().strip()
-qt_moc = find_program(join_paths(qt_host_bins, 'moc.exe'), required: true)
+if build_gui
+  qt_qmake = find_program('qmake6', 'qmake', required: true)
+  qt_spec = run_command(qt_qmake, '-query', 'QMAKE_SPEC', check: true).stdout().strip()
+  qt_prefix = run_command(qt_qmake, '-query', 'QT_INSTALL_PREFIX', check: true).stdout().strip()
+
+  if cpp.get_id() == 'msvc' and qt_spec.contains('g++')
+    error('Qt installation at ' + qt_prefix + ' uses MinGW (' + qt_spec + ') but the current compiler is MSVC. Reconfigure with MinGW (CC=gcc, CXX=g++) or install an MSVC Qt build.')
+  endif
+
+  if cpp.get_id() != 'msvc' and qt_spec.contains('msvc')
+    error('Qt installation at ' + qt_prefix + ' uses MSVC (' + qt_spec + ') but the current compiler is not MSVC. Reconfigure with cl.exe or install a MinGW Qt build.')
+  endif
+
+  qt6_core = dependency('Qt6Core', method: 'cmake', required: true)
+  qt6_gui = dependency('Qt6Gui', method: 'cmake', required: true)
+  qt6_widgets = dependency('Qt6Widgets', method: 'cmake', required: true)
+  qt6_network = dependency('Qt6Network', method: 'cmake', required: true)
+  qt6_dep = [qt6_core, qt6_gui, qt6_widgets, qt6_network]
+
+  qt_host_bins = run_command(qt_qmake, '-query', 'QT_HOST_BINS', check: true).stdout().strip()
+  qt_moc_name = host_machine.system() == 'windows' ? 'moc.exe' : 'moc'
+  qt_moc = find_program(join_paths(qt_host_bins, qt_moc_name), required: true)
+endif
 
 # ============================================================================
 # Source files
@@ -88,15 +108,18 @@ UnifiedMessengerCore = static_library('UnifiedMessengerCore',
 # ============================================================================
 # GUI Executable (Qt6)
 # ============================================================================
-executable('UnifiedMessenger_GUI',
-           main_source,
-           processed_gui_sources,
-           include_directories: inc,
-           cpp_args: ['-DUSE_GUI'],
-           dependencies: [qt6_dep, sqlite3_dep],
-           link_with: UnifiedMessengerCore,
-           install: true
-)
+if build_gui
+  executable('UnifiedMessenger_GUI',
+             main_source,
+             processed_gui_sources,
+             include_directories: inc,
+             cpp_args: ['-DUSE_GUI'],
+             dependencies: [qt6_dep, sqlite3_dep],
+             link_with: UnifiedMessengerCore,
+             install: true,
+             build_by_default: true
+  )
+endif
 
 executable('VeritaHeadless',
            headless_main_source,

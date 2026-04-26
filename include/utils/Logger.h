@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <chrono>
 #include <fstream>
 #include <memory>
 #include <mutex>

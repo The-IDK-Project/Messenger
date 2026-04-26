@@ -1,4 +1,6 @@
 #include "utils/Logger.h"
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
