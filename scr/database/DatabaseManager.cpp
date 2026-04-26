@@ -3,6 +3,8 @@
 #include "database/Migrations.h"
 #include "utils/Logger.h"
 #include "utils/StringUtils.h"
+#include <algorithm>
+#include <cstdlib>
 #include <sqlite3.h>
 #include <filesystem>
 #include <json/json.h>
@@ -313,12 +315,8 @@ std::vector<User> DatabaseManager::get_users_by_room(const std::string& room_id)
         return users;
     }
 
-    Json::Value participants;
-    Json::Reader reader;
-    if (reader.parse(room.participants, participants)) {
-        for (const auto& id : participants) {
-            users.push_back(get_user(id.asString()));
-        }
+    for (const auto& participant_id : room.participants) {
+        users.push_back(get_user(participant_id));
     }
     return users;
 }
@@ -352,4 +350,232 @@ bool DatabaseManager::execute_sql(const std::string& sql) {
     }
 
     return true;
+}
+
+std::vector<Message> DatabaseManager::search_messages(const std::string& query,
+                                                      const std::string& room_id,
+                                                      int limit) {
+    std::vector<Message> messages;
+    if (!db_) return messages;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::string sql =
+        "SELECT id, content, sender_id, sender_name, room_id, protocol, type, status, timestamp, reply_to_id, metadata "
+        "FROM messages WHERE content LIKE ?";
+    if (!room_id.empty()) {
+        sql += " AND room_id = ?";
+    }
+    sql += " ORDER BY timestamp DESC LIMIT ?";
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        return messages;
+    }
+
+    const std::string like_query = "%" + query + "%";
+    int bind_index = 1;
+    sqlite3_bind_text(stmt, bind_index++, like_query.c_str(), -1, SQLITE_TRANSIENT);
+    if (!room_id.empty()) {
+        sqlite3_bind_text(stmt, bind_index++, room_id.c_str(), -1, SQLITE_TRANSIENT);
+    }
+    sqlite3_bind_int(stmt, bind_index, limit);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Message msg;
+        msg.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        msg.content = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        msg.sender_id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        msg.sender_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        msg.room_id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        msg.protocol = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+        msg.type = static_cast<MessageType>(sqlite3_column_int(stmt, 6));
+        msg.status = static_cast<MessageStatus>(sqlite3_column_int(stmt, 7));
+        msg.timestamp = std::chrono::system_clock::time_point(std::chrono::seconds(sqlite3_column_int64(stmt, 8)));
+        if (sqlite3_column_type(stmt, 9) != SQLITE_NULL) {
+            msg.reply_to_id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+        }
+        if (sqlite3_column_type(stmt, 10) != SQLITE_NULL) {
+            msg.metadata = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
+        }
+        messages.push_back(msg);
+    }
+
+    sqlite3_finalize(stmt);
+    std::reverse(messages.begin(), messages.end());
+    return messages;
+}
+
+bool DatabaseManager::update_message_status(const std::string& message_id, MessageStatus status) {
+    if (!db_) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    sqlite3_stmt* stmt = nullptr;
+    const char* sql = "UPDATE messages SET status = ? WHERE id = ?";
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    sqlite3_bind_int(stmt, 1, static_cast<int>(status));
+    sqlite3_bind_text(stmt, 2, message_id.c_str(), -1, SQLITE_TRANSIENT);
+    const bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+bool DatabaseManager::delete_message(const std::string& message_id) {
+    if (!db_) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    sqlite3_stmt* stmt = nullptr;
+    const char* sql = "DELETE FROM messages WHERE id = ?";
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, message_id.c_str(), -1, SQLITE_TRANSIENT);
+    const bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+int DatabaseManager::get_message_count(const std::string& room_id) {
+    if (!db_) return 0;
+    std::lock_guard<std::mutex> lock(mutex_);
+    sqlite3_stmt* stmt = nullptr;
+    std::string sql = room_id.empty()
+        ? "SELECT COUNT(*) FROM messages"
+        : "SELECT COUNT(*) FROM messages WHERE room_id = ?";
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        return 0;
+    }
+    if (!room_id.empty()) {
+        sqlite3_bind_text(stmt, 1, room_id.c_str(), -1, SQLITE_TRANSIENT);
+    }
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        count = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    return count;
+}
+
+std::vector<User> DatabaseManager::get_users_by_protocol(const std::string& protocol) {
+    std::vector<User> users;
+    for (auto user : search_users("", 1000)) {
+        if (user.supports_protocol(protocol)) {
+            users.push_back(std::move(user));
+        }
+    }
+    return users;
+}
+
+bool DatabaseManager::update_user_presence(const std::string& user_id, bool online) {
+    User user = get_user(user_id);
+    if (user.id.empty()) return false;
+    user.update_presence(online);
+    return store_user(user);
+}
+
+bool DatabaseManager::delete_user(const std::string& user_id) {
+    if (!db_) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    sqlite3_stmt* stmt = nullptr;
+    const char* sql = "DELETE FROM users WHERE id = ?";
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    const bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+bool DatabaseManager::store_room(const ChatRoom& room) {
+    (void)room;
+    return db_ != nullptr;
+}
+
+ChatRoom DatabaseManager::get_room(const std::string& room_id) {
+    ChatRoom room;
+    room.id = room_id;
+    return room;
+}
+
+std::vector<ChatRoom> DatabaseManager::get_rooms_by_protocol(const std::string& protocol) {
+    (void)protocol;
+    return {};
+}
+
+std::vector<ChatRoom> DatabaseManager::get_recent_rooms(int limit) {
+    (void)limit;
+    return {};
+}
+
+bool DatabaseManager::update_room_activity(const std::string& room_id, const std::string& last_message_id) {
+    (void)room_id;
+    (void)last_message_id;
+    return db_ != nullptr;
+}
+
+bool DatabaseManager::delete_room(const std::string& room_id) {
+    (void)room_id;
+    return db_ != nullptr;
+}
+
+bool DatabaseManager::store_session(const std::string& protocol,
+                                    const std::string& access_token,
+                                    const std::string& user_id,
+                                    const std::string& server_config) {
+    (void)protocol;
+    (void)access_token;
+    (void)user_id;
+    (void)server_config;
+    return db_ != nullptr;
+}
+
+std::string DatabaseManager::get_session_token(const std::string& protocol) {
+    (void)protocol;
+    return {};
+}
+
+std::string DatabaseManager::get_session_user_id(const std::string& protocol) {
+    (void)protocol;
+    return {};
+}
+
+bool DatabaseManager::delete_session(const std::string& protocol) {
+    (void)protocol;
+    return db_ != nullptr;
+}
+
+bool DatabaseManager::store_setting(const std::string& key, const std::string& value) {
+    (void)key;
+    (void)value;
+    return db_ != nullptr;
+}
+
+std::string DatabaseManager::get_setting(const std::string& key, const std::string& default_value) {
+    (void)key;
+    return default_value;
+}
+
+bool DatabaseManager::backup_database(const std::string& backup_path) {
+    (void)backup_path;
+    return db_ != nullptr;
+}
+
+bool DatabaseManager::vacuum_database() {
+    return execute_sql("VACUUM;");
+}
+
+int DatabaseManager::get_database_size() {
+    return 0;
+}
+
+bool DatabaseManager::begin_transaction() {
+    return execute_sql("BEGIN TRANSACTION;");
+}
+
+bool DatabaseManager::commit_transaction() {
+    return execute_sql("COMMIT;");
+}
+
+bool DatabaseManager::rollback_transaction() {
+    return execute_sql("ROLLBACK;");
 }

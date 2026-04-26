@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <iosfwd>
 #include <string>
 #include <vector>
 #include <map>
@@ -21,6 +23,7 @@ public:
     JsonValue(std::nullptr_t);
     JsonValue(bool value);
     JsonValue(int value);
+    JsonValue(int64_t value);
     JsonValue(double value);
     JsonValue(const std::string& value);
     JsonValue(const char* value);
@@ -44,6 +47,7 @@ public:
 
     bool as_bool(bool default_value = false) const;
     int as_int(int default_value = 0) const;
+    int64_t as_int64(int64_t default_value = 0) const;
     double as_double(double default_value = 0.0) const;
     std::string as_string(const std::string& default_value = "") const;
 
@@ -69,6 +73,7 @@ public:
 
 private:
     class Impl;
+    void serialize(std::ostringstream& oss, bool pretty, int indent, int current_indent) const;
     std::unique_ptr<Impl> impl_;
 };
 

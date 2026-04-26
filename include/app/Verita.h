@@ -6,13 +6,12 @@
 #include <map>
 #include <functional>
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include "../core/Message.h"
 #include "../core/User.h"
 #include "../core/ChatRoom.h"
-#include "../core/Config.h"
 #include "../protocols/ProtocolHandler.h"
-#include "../database/DatabaseManager.h"
 #include "../platform/ScreenCapturer.h"
 
 class Verita {
@@ -147,6 +146,6 @@ private:
     std::jthread notification_thread_;
     mutable std::mutex data_mutex_;
 
-    UnifiedMessenger(const Verita&) = delete;
+    Verita(const Verita&) = delete;
     Verita& operator=(const Verita&) = delete;
 };

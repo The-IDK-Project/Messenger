@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <sqlite3.h>
 #include "../core/Message.h"
 #include "../core/User.h"
@@ -66,13 +67,14 @@ public:
     bool rollback_transaction();
 
 private:
-    DatabaseManager() = default;
+    DatabaseManager();
     ~DatabaseManager();
     DatabaseManager(const DatabaseManager&) = delete;
     DatabaseManager& operator=(const DatabaseManager&) = delete;
 
     sqlite3* db_ = nullptr;
     std::string db_path_;
+    mutable std::mutex mutex_;
 
     bool execute_sql(const std::string& sql);
     bool run_migrations();

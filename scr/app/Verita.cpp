@@ -1,4 +1,6 @@
 #include "app/Verita.h"
+#include "core/Config.h"
+#include "database/DatabaseManager.h"
 #include "protocols/ProtocolFactory.h"
 #include "utils/Logger.h"
 #include "utils/StringUtils.h"
@@ -11,15 +13,15 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-UnifiedMessenger::Verita() {
+Verita::Verita() {
     // Singletons are managed internally
 }
 
-UnifiedMessenger::~Verita() {
+Verita::~Verita() {
     shutdown();
 }
 
-bool Verita1::initialize() {
+bool Verita::initialize() {
     if (initialized_) {
         LOG_WARNING("UnifiedMessenger already initialized");
         return true;
@@ -48,8 +50,12 @@ bool Verita1::initialize() {
 
     initialize_protocols();
 
-    sync_thread_ = std::jthread(&UnifiedMessenger::sync_worker, this);
-    notification_thread_ = std::jthread(&UnifiedMessenger::notification_worker, this);
+    sync_thread_ = std::jthread([this](std::stop_token stop_token) {
+        sync_worker(stop_token);
+    });
+    notification_thread_ = std::jthread([this](std::stop_token stop_token) {
+        notification_worker(stop_token);
+    });
 
     initialized_ = true;
     LOG_INFO("Unified Messenger initialized successfully");
@@ -80,7 +86,7 @@ void Verita::shutdown() {
     LOG_INFO("Unified Messenger shutdown complete");
 }
 
-bool UnifiedMessenger::add_protocol(const std::string& name, std::unique_ptr<ProtocolHandler> handler) {
+bool Verita::add_protocol(const std::string& name, std::unique_ptr<ProtocolHandler> handler) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     if (protocols_.contains(name)) {
@@ -95,7 +101,7 @@ bool UnifiedMessenger::add_protocol(const std::string& name, std::unique_ptr<Pro
     return true;
 }
 
-bool UnifiedMessenger::remove_protocol(const std::string& name) {
+bool Verita::remove_protocol(const std::string& name) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     auto it = protocols_.find(name);
@@ -113,7 +119,7 @@ bool UnifiedMessenger::remove_protocol(const std::string& name) {
     return true;
 }
 
-bool UnifiedMessenger::connect_protocol(const std::string& name) {
+bool Verita::connect_protocol(const std::string& name) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     auto it = protocols_.find(name);
@@ -143,7 +149,7 @@ bool UnifiedMessenger::connect_protocol(const std::string& name) {
     return result;
 }
 
-bool UnifiedMessenger::disconnect_protocol(const std::string& name) {
+bool Verita::disconnect_protocol(const std::string& name) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     auto it = protocols_.find(name);
@@ -167,7 +173,7 @@ bool UnifiedMessenger::disconnect_protocol(const std::string& name) {
     return true;
 }
 
-void UnifiedMessenger::connect_all() {
+void Verita::connect_all() {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     bool auto_connect = Config::get_instance().get_auto_connect();
@@ -184,7 +190,7 @@ void UnifiedMessenger::connect_all() {
     }
 }
 
-void UnifiedMessenger::disconnect_all() {
+void Verita::disconnect_all() {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     for (auto& [name, handler] : protocols_) {
@@ -194,7 +200,7 @@ void UnifiedMessenger::disconnect_all() {
     }
 }
 
-std::vector<std::string> UnifiedMessenger::get_available_protocols() const {
+std::vector<std::string> Verita::get_available_protocols() const {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     std::vector<std::string> result;
@@ -204,7 +210,7 @@ std::vector<std::string> UnifiedMessenger::get_available_protocols() const {
     return result;
 }
 
-std::vector<std::string> UnifiedMessenger::get_connected_protocols() const {
+std::vector<std::string> Verita::get_connected_protocols() const {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     std::vector<std::string> result;
@@ -216,7 +222,7 @@ std::vector<std::string> UnifiedMessenger::get_connected_protocols() const {
     return result;
 }
 
-bool UnifiedMessenger::send_message(const std::string& protocol,
+bool Verita::send_message(const std::string& protocol,
                                    const std::string& room_id,
                                    const std::string& message) {
     std::lock_guard<std::mutex> lock(data_mutex_);
@@ -246,15 +252,15 @@ bool UnifiedMessenger::send_message(const std::string& protocol,
     return result;
 }
 
-std::vector<ChatRoom> UnifiedMessenger::get_all_rooms() const {
+std::vector<ChatRoom> Verita::get_all_rooms() const {
     return DatabaseManager::get_instance().get_recent_rooms(100);
 }
 
-std::vector<ChatRoom> UnifiedMessenger::get_rooms_by_protocol(const std::string& protocol) const {
+std::vector<ChatRoom> Verita::get_rooms_by_protocol(const std::string& protocol) const {
     return DatabaseManager::get_instance().get_rooms_by_protocol(protocol);
 }
 
-bool UnifiedMessenger::join_room(const std::string& protocol, const std::string& room_id) {
+bool Verita::join_room(const std::string& protocol, const std::string& room_id) {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     auto it = protocols_.find(protocol);
@@ -266,18 +272,18 @@ bool UnifiedMessenger::join_room(const std::string& protocol, const std::string&
     return it->second->join_room(room_id);
 }
 
-std::vector<Message> UnifiedMessenger::get_unified_inbox(int limit) const {
+std::vector<Message> Verita::get_unified_inbox(int limit) const {
     if (!active_room_id_.empty()) {
         return DatabaseManager::get_instance().get_messages(active_room_id_, limit);
     }
     return {};
 }
 
-std::vector<Message> UnifiedMessenger::get_room_messages(const std::string& room_id, int limit) const {
+std::vector<Message> Verita::get_room_messages(const std::string& room_id, int limit) const {
     return DatabaseManager::get_instance().get_messages(room_id, limit);
 }
 
-void UnifiedMessenger::sync_all() {
+void Verita::sync_all() {
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     for (auto& [name, handler] : protocols_) {
@@ -287,31 +293,35 @@ void UnifiedMessenger::sync_all() {
     }
 }
 
-void UnifiedMessenger::set_message_callback(MessageCallback callback) {
+void Verita::set_message_callback(MessageCallback callback) {
     message_callback_ = std::move(callback);
 }
 
-void UnifiedMessenger::set_room_callback(RoomCallback callback) {
+void Verita::set_room_callback(RoomCallback callback) {
     room_callback_ = std::move(callback);
 }
 
-void UnifiedMessenger::set_status_callback(StatusCallback callback) {
+void Verita::set_status_callback(StatusCallback callback) {
     status_callback_ = std::move(callback);
 }
 
-void UnifiedMessenger::set_error_callback(ErrorCallback callback) {
+void Verita::set_error_callback(ErrorCallback callback) {
     error_callback_ = std::move(callback);
 }
 
-bool UnifiedMessenger::load_config(const std::string& config_path) {
+void Verita::set_call_incoming_callback(CallIncomingCallback callback) {
+    call_incoming_callback_ = std::move(callback);
+}
+
+bool Verita::load_config(const std::string& config_path) {
     return Config::get_instance().load_from_file(config_path);
 }
 
-bool UnifiedMessenger::save_config(const std::string& config_path) const {
+bool Verita::save_config(const std::string& config_path) const {
     return Config::get_instance().save_to_file(config_path);
 }
 
-void UnifiedMessenger::initialize_protocols() {
+void Verita::initialize_protocols() {
     ProtocolFactory& factory = ProtocolFactory::get_instance();
     factory.register_default_protocols();
 
@@ -334,7 +344,7 @@ void UnifiedMessenger::initialize_protocols() {
     }
 }
 
-void UnifiedMessenger::setup_protocol_callbacks(const std::string& protocol_name) {
+void Verita::setup_protocol_callbacks(const std::string& protocol_name) {
     auto& handler = protocols_[protocol_name];
 
     handler->set_message_callback([this, protocol_name](const Message& message) {
@@ -352,9 +362,15 @@ void UnifiedMessenger::setup_protocol_callbacks(const std::string& protocol_name
     handler->set_error_callback([this, protocol_name](const std::string& error) {
         handle_protocol_error(protocol_name, error);
     });
+
+    handler->set_call_incoming_callback([this, protocol_name](const std::string& call_id,
+                                                               const std::string& caller_id,
+                                                               bool is_video) {
+        handle_protocol_call_incoming(protocol_name, call_id, caller_id, is_video);
+    });
 }
 
-void UnifiedMessenger::handle_protocol_message(const std::string& protocol, const Message& message) {
+void Verita::handle_protocol_message(const std::string& protocol, const Message& message) {
     DatabaseManager::get_instance().store_message(message);
     if (message_callback_) {
         message_callback_(message);
@@ -363,7 +379,7 @@ void UnifiedMessenger::handle_protocol_message(const std::string& protocol, cons
     LOG_DEBUG(std::format("Message received from {}: {}...", protocol, message.content.substr(0, 50)));
 }
 
-void UnifiedMessenger::handle_protocol_room(const std::string& protocol, const ChatRoom& room) {
+void Verita::handle_protocol_room(const std::string& protocol, const ChatRoom& room) {
     DatabaseManager::get_instance().store_room(room);
     if (room_callback_) {
         room_callback_(room);
@@ -372,7 +388,7 @@ void UnifiedMessenger::handle_protocol_room(const std::string& protocol, const C
     LOG_DEBUG(std::format("Room update from {}: {}", protocol, room.name));
 }
 
-void UnifiedMessenger::handle_protocol_user(const std::string& protocol, const User& user) {
+void Verita::handle_protocol_user(const std::string& protocol, const User& user) {
     DatabaseManager::get_instance().store_user(user);
     if (user_callback_) {
         user_callback_(user);
@@ -381,7 +397,7 @@ void UnifiedMessenger::handle_protocol_user(const std::string& protocol, const U
     LOG_DEBUG(std::format("User update from {}: {}", protocol, user.get_best_name()));
 }
 
-void UnifiedMessenger::handle_protocol_error(const std::string& protocol, const std::string& error) {
+void Verita::handle_protocol_error(const std::string& protocol, const std::string& error) {
     LOG_ERROR(std::format("Protocol error ({}): {}", protocol, error));
 
     if (error_callback_) {
@@ -389,7 +405,16 @@ void UnifiedMessenger::handle_protocol_error(const std::string& protocol, const 
     }
 }
 
-void UnifiedMessenger::sync_worker(std::stop_token stop_token) {
+void Verita::handle_protocol_call_incoming(const std::string& protocol,
+                                           const std::string& call_id,
+                                           const std::string& caller_id,
+                                           bool is_video) {
+    if (call_incoming_callback_) {
+        call_incoming_callback_(protocol, call_id, caller_id, is_video);
+    }
+}
+
+void Verita::sync_worker(std::stop_token stop_token) {
     while (!stop_token.stop_requested()) {
         std::this_thread::sleep_for(std::chrono::seconds(30));
 
@@ -403,7 +428,7 @@ void UnifiedMessenger::sync_worker(std::stop_token stop_token) {
     }
 }
 
-void UnifiedMessenger::notification_worker(std::stop_token stop_token) {
+void Verita::notification_worker(std::stop_token stop_token) {
     while (!stop_token.stop_requested()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -412,39 +437,66 @@ void UnifiedMessenger::notification_worker(std::stop_token stop_token) {
     }
 }
 
-std::string UnifiedMessenger::get_version() const {
+std::string Verita::get_version() const {
     return "1.0.0";
 }
 
-std::vector<std::string> UnifiedMessenger::get_supported_protocols() const {
+std::vector<std::string> Verita::get_supported_protocols() const {
     return {"matrix", "irc"};
 }
 
-bool UnifiedMessenger::is_ready() const {
+bool Verita::is_ready() const {
     return initialized_ && DatabaseManager::get_instance().is_initialized();
 }
 
 // Screen Share API
-bool UnifiedMessenger::start_screen_share(const std::string& protocol, const std::string& call_id, int screen_id) {
+bool Verita::start_screen_share(const std::string& protocol, const std::string& call_id, int screen_id) {
     LOG_INFO(std::format("Starting screen share for call {} on screen {}", call_id, screen_id));
     // Platform-specific implementation needed
     return false;
 }
 
-bool UnifiedMessenger::stop_screen_share(const std::string& protocol, const std::string& call_id) {
+bool Verita::stop_screen_share(const std::string& protocol, const std::string& call_id) {
     LOG_INFO(std::format("Stopping screen share for call {}", call_id));
     // Platform-specific implementation needed
     return false;
 }
 
-std::vector<ScreenCapturer::Screen> UnifiedMessenger::get_available_screens() {
+std::vector<ScreenCapturer::Screen> Verita::get_available_screens() {
     return ScreenCapturer::get_screens();
+}
+
+bool Verita::start_call(const std::string& protocol, const std::string& user_id, bool is_video) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end() || !it->second->is_connected()) {
+        return false;
+    }
+    return it->second->start_call(user_id, is_video);
+}
+
+bool Verita::accept_call(const std::string& protocol, const std::string& call_id) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end() || !it->second->is_connected()) {
+        return false;
+    }
+    return it->second->accept_call(call_id);
+}
+
+bool Verita::end_call(const std::string& protocol, const std::string& call_id) {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    auto it = protocols_.find(protocol);
+    if (it == protocols_.end() || !it->second->is_connected()) {
+        return false;
+    }
+    return it->second->end_call(call_id);
 }
 
 
 // Missing implementations
 
-bool UnifiedMessenger::is_protocol_connected(const std::string& name) const {
+bool Verita::is_protocol_connected(const std::string& name) const {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(name);
     if (it != protocols_.end()) {
@@ -453,7 +505,7 @@ bool UnifiedMessenger::is_protocol_connected(const std::string& name) const {
     return false;
 }
 
-bool UnifiedMessenger::send_file(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
+bool Verita::send_file(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -467,7 +519,7 @@ bool UnifiedMessenger::send_file(const std::string& protocol, const std::string&
     return it->second->send_file(room_id, file_path);
 }
 
-bool UnifiedMessenger::send_voice_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
+bool Verita::send_voice_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -478,11 +530,10 @@ bool UnifiedMessenger::send_voice_message(const std::string& protocol, const std
         LOG_ERROR(std::format("Protocol not connected for sending voice message: {}", protocol));
         return false;
     }
-    // Assuming ProtocolHandler has send_voice_message
-    return it->second->send_voice_message(room_id, file_path);
+    return it->second->send_file(room_id, file_path);
 }
 
-bool UnifiedMessenger::send_video_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
+bool Verita::send_video_message(const std::string& protocol, const std::string& room_id, const std::string& file_path) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -497,7 +548,7 @@ bool UnifiedMessenger::send_video_message(const std::string& protocol, const std
     return it->second->send_video_message(room_id, file_path);
 }
 
-bool UnifiedMessenger::mark_message_read(const std::string& protocol, const std::string& room_id, const std::string& message_id) {
+bool Verita::mark_message_read(const std::string& protocol, const std::string& room_id, const std::string& message_id) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -510,13 +561,13 @@ bool UnifiedMessenger::mark_message_read(const std::string& protocol, const std:
     }
 
     // Notify the protocol handler to send the read receipt
-    it->second->mark_message_read(room_id, message_id);
+    it->second->mark_read(room_id, message_id);
 
     // Update the local database
     return DatabaseManager::get_instance().update_message_status(message_id, MessageStatus::READ);
 }
 
-bool UnifiedMessenger::leave_room(const std::string& protocol, const std::string& room_id) {
+bool Verita::leave_room(const std::string& protocol, const std::string& room_id) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -530,7 +581,7 @@ bool UnifiedMessenger::leave_room(const std::string& protocol, const std::string
     return it->second->leave_room(room_id);
 }
 
-bool UnifiedMessenger::create_room(const std::string& protocol, const std::string& name, const std::vector<std::string>& users) {
+bool Verita::create_room(const std::string& protocol, const std::string& name, const std::vector<std::string>& users) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it == protocols_.end()) {
@@ -544,11 +595,11 @@ bool UnifiedMessenger::create_room(const std::string& protocol, const std::strin
     return it->second->create_room(name, users);
 }
 
-void UnifiedMessenger::set_active_room(const std::string& room_id) {
+void Verita::set_active_room(const std::string& room_id) {
     active_room_id_ = room_id;
 }
 
-User UnifiedMessenger::get_current_user(const std::string& protocol) const {
+User Verita::get_current_user(const std::string& protocol) const {
     std::string user_id = DatabaseManager::get_instance().get_session_user_id(protocol);
     if (user_id.empty()) {
         LOG_WARNING(std::format("Could not find current user ID for protocol: {}", protocol));
@@ -557,19 +608,19 @@ User UnifiedMessenger::get_current_user(const std::string& protocol) const {
     return DatabaseManager::get_instance().get_user(user_id);
 }
 
-std::vector<User> UnifiedMessenger::get_room_users(const std::string& room_id) const {
+std::vector<User> Verita::get_room_users(const std::string& room_id) const {
     return DatabaseManager::get_instance().get_users_by_room(room_id);
 }
 
-std::vector<User> UnifiedMessenger::search_users(const std::string& query) const {
+std::vector<User> Verita::search_users(const std::string& query) const {
     return DatabaseManager::get_instance().search_users(query);
 }
 
-std::vector<Message> UnifiedMessenger::search_messages(const std::string& query, int limit) const {
+std::vector<Message> Verita::search_messages(const std::string& query, int limit) const {
     return DatabaseManager::get_instance().search_messages(query, "", limit);
 }
 
-void UnifiedMessenger::request_sync(const std::string& protocol) {
+void Verita::request_sync(const std::string& protocol) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     auto it = protocols_.find(protocol);
     if (it != protocols_.end() && it->second->is_connected()) {
@@ -577,16 +628,16 @@ void UnifiedMessenger::request_sync(const std::string& protocol) {
     }
 }
 
-void UnifiedMessenger::set_user_callback(UserCallback callback) {
+void Verita::set_user_callback(UserCallback callback) {
     user_callback_ = std::move(callback);
 }
 
-void UnifiedMessenger::set_setting(const std::string& key, const std::string& value) {
+void Verita::set_setting(const std::string& key, const std::string& value) {
     // DatabaseManager has store_setting, assume it works
     DatabaseManager::get_instance().store_setting(key, value);
 }
 
-std::string UnifiedMessenger::get_setting(const std::string& key, const std::string& default_value) const {
+std::string Verita::get_setting(const std::string& key, const std::string& default_value) const {
     // DatabaseManager has get_setting
     // Note: DatabaseManager::get_instance() is not const-correct if used in const method unless it returns reference to non-const or mutable?
     // Actually DatabaseManager::get_instance() returns DatabaseManager&.
@@ -597,31 +648,31 @@ std::string UnifiedMessenger::get_setting(const std::string& key, const std::str
     return const_cast<DatabaseManager&>(DatabaseManager::get_instance()).get_setting(key, default_value);
 }
 
-void UnifiedMessenger::enable_notifications(bool enable) {
+void Verita::enable_notifications(bool enable) {
     Config::get_instance().set_notifications_enabled(enable);
 }
 
-void UnifiedMessenger::set_notification_sound(bool enable) {
+void Verita::set_notification_sound(bool enable) {
     // Config doesn't have this yet, maybe add to Config or store in DB
     set_setting("notification_sound", enable ? "true" : "false");
 }
 
-void UnifiedMessenger::set_notification_popup(bool enable) {
+void Verita::set_notification_popup(bool enable) {
     set_setting("notification_popup", enable ? "true" : "false");
 }
 
-bool UnifiedMessenger::backup_database(const std::string& backup_path) {
+bool Verita::backup_database(const std::string& backup_path) {
     return DatabaseManager::get_instance().backup_database(backup_path);
 }
 
-bool UnifiedMessenger::vacuum_database() {
+bool Verita::vacuum_database() {
     return DatabaseManager::get_instance().vacuum_database();
 }
 
-int UnifiedMessenger::get_database_size() const {
+int Verita::get_database_size() const {
     return const_cast<DatabaseManager&>(DatabaseManager::get_instance()).get_database_size();
 }
 
-void UnifiedMessenger::initialize_database() {
+void Verita::initialize_database() {
     // This is called in initialize(), implemented there.
 }

@@ -59,4 +59,7 @@ private:
 
     void set_defaults();
     std::string get_config_path() const;
+    std::string get_setting(const std::string& category,
+                          const std::string& key,
+                          const std::string& default_value) const;
 };

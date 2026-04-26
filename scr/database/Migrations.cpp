@@ -232,3 +232,102 @@ int Migrations::get_current_version(sqlite3* db) {
     sqlite3_finalize(stmt);
     return version;
 }
+
+bool Migrations::migrate_to_version(sqlite3* db, int target_version) {
+    if (!db) return false;
+    initialize_migrations();
+
+    const int latest = get_latest_version();
+    if (target_version < 0 || target_version > latest) {
+        return false;
+    }
+
+    if (!create_migrations_table(db)) {
+        return false;
+    }
+
+    int current_version = get_current_version(db);
+    if (target_version < current_version) {
+        return rollback_to_version(db, target_version);
+    }
+
+    for (int version = current_version + 1; version <= target_version; ++version) {
+        const Migration& migration = migrations_[version - 1];
+        if (migration.up && !migration.up(db)) {
+            return false;
+        }
+        if (!record_migration(db, version, true)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Migrations::rollback_to_version(sqlite3* db, int target_version) {
+    if (!db) return false;
+    initialize_migrations();
+
+    if (!create_migrations_table(db)) {
+        return false;
+    }
+
+    int current_version = get_current_version(db);
+    if (target_version > current_version) {
+        return migrate_to_version(db, target_version);
+    }
+
+    for (int version = current_version; version > target_version; --version) {
+        const Migration& migration = migrations_[version - 1];
+        if (migration.down && !migration.down(db)) {
+            return false;
+        }
+        if (!record_migration(db, version, false)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::vector<std::string> Migrations::get_migration_history(sqlite3* db) {
+    std::vector<std::string> history;
+    if (!db || !create_migrations_table(db)) {
+        return history;
+    }
+
+    const char* sql = "SELECT version, description FROM migrations ORDER BY version";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return history;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const int version = sqlite3_column_int(stmt, 0);
+        const char* description = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        history.push_back("v" + std::to_string(version) + ": " + (description ? description : ""));
+    }
+
+    sqlite3_finalize(stmt);
+    return history;
+}
+
+bool Migrations::rollback_v1(sqlite3* db) {
+    const char* sql = R"(
+        DROP TABLE IF EXISTS messages;
+        DROP TABLE IF EXISTS users;
+        DROP TABLE IF EXISTS rooms;
+        DROP TABLE IF EXISTS settings;
+    )";
+    return sqlite3_exec(db, sql, nullptr, nullptr, nullptr) == SQLITE_OK;
+}
+
+bool Migrations::rollback_v2(sqlite3* db) {
+    (void)db;
+    return true;
+}
+
+bool Migrations::rollback_v3(sqlite3* db) {
+    const char* sql = "DROP TABLE IF EXISTS sessions;";
+    return sqlite3_exec(db, sql, nullptr, nullptr, nullptr) == SQLITE_OK;
+}

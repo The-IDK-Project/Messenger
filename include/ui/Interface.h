@@ -51,17 +51,17 @@ public:
     virtual void clear_input() = 0;
     virtual void focus_input() = 0;
 
-    virtual void set_input_handler(InputHandler handler) = 0;
-    virtual void set_command_handler(CommandHandler handler) = 0;
-    virtual void set_room_select_handler(RoomSelectHandler handler) = 0;
-    virtual void set_quit_handler(QuitHandler handler) = 0;
-    virtual void set_call_handler(CallHandler handler) = 0;
-    virtual void set_voice_message_handler(VoiceMessageHandler handler) = 0;
-    virtual void set_video_message_handler(VideoMessageHandler handler) = 0;
-    virtual void set_screen_share_handler(ScreenShareHandler handler) = 0;
+    virtual void set_input_handler(InputHandler handler);
+    virtual void set_command_handler(CommandHandler handler);
+    virtual void set_room_select_handler(RoomSelectHandler handler);
+    virtual void set_quit_handler(QuitHandler handler);
+    virtual void set_call_handler(CallHandler handler);
+    virtual void set_voice_message_handler(VoiceMessageHandler handler);
+    virtual void set_video_message_handler(VideoMessageHandler handler);
+    virtual void set_screen_share_handler(ScreenShareHandler handler);
 
-    virtual void show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) = 0;
-    virtual void show_screen_selection(const std::vector<ScreenCapturer::Screen>& screens) = 0;
+    virtual void show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video);
+    virtual void show_screen_selection(const std::vector<ScreenCapturer::Screen>& screens);
 
     virtual void refresh() = 0;
     virtual void redraw() = 0;

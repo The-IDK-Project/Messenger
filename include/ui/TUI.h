@@ -43,6 +43,8 @@ public:
     void set_command_handler(CommandHandler handler) override;
     void set_room_select_handler(RoomSelectHandler handler) override;
     void set_quit_handler(QuitHandler handler) override;
+    void show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) override;
+    void show_screen_selection(const std::vector<ScreenCapturer::Screen>& screens) override;
 
     void refresh() override;
     void redraw() override;

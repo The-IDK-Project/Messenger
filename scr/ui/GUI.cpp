@@ -6,6 +6,7 @@
 #include <QTextEdit>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QSplitter>
 #include <QPushButton>
 #include <QStatusBar>
 #include <QMenuBar>
@@ -15,6 +16,7 @@
 #include <QCloseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QTextCursor>
 
 GUI::GUI(QWidget* parent) : QMainWindow(parent) {
     setup_ui();
@@ -199,8 +201,8 @@ void GUI::setup_ui() {
 
     // Circle (Video note) handler
     connect(circle_button, &QPushButton::clicked, this, [this]() {
-        if (!active_room_id_.empty() && video_circle_handler_) {
-            video_circle_handler_(active_room_id_);
+        if (!active_room_id_.empty() && video_message_handler_) {
+            video_message_handler_(active_room_id_, "");
         }
     });
 }
@@ -391,3 +393,4 @@ void GUI::set_title(const std::string& title) {}
 void GUI::set_theme(const std::string& theme) {}
 void GUI::set_font_size(int size) {}
 void GUI::show_help() {}
+void GUI::apply_theme(const std::string& theme) {}

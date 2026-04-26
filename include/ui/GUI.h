@@ -7,12 +7,13 @@
 
 class QTextEdit;
 class QListWidget;
+class QListWidgetItem;
 class QLineEdit;
 class QSplitter;
 class QStatusBar;
 class QSystemTrayIcon;
 
-class GUI : public Interface, public QMainWindow {
+class GUI : public QMainWindow, public Interface {
     Q_OBJECT
 
 public:
@@ -41,6 +42,9 @@ public:
     void show_error(const std::string& error) override;
     void show_notification(const std::string& title,
                          const std::string& message) override;
+    void show_incoming_call(const std::string& room_id,
+                          const std::string& caller_name,
+                          bool is_video) override;
 
     void set_input_text(const std::string& text) override;
     std::string get_input_text() override;
@@ -77,6 +81,10 @@ private:
     void setup_menus();
     void setup_tray_icon();
     void apply_theme(const std::string& theme);
+    void update_room_list();
+    void update_chat_display();
+    void update_user_list();
+    void update_window_title();
 
     QSplitter* main_splitter_;
     QTextEdit* chat_display_;

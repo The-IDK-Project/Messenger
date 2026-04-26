@@ -4,7 +4,9 @@
 #include <vector>
 #include "../include/app/Verita.h"
 #include "../include/ui/Interface.h"
+#ifdef USE_TUI
 #include "../include/ui/TUI.h"
+#endif
 #ifdef USE_GUI
 #include "../include/ui/GUI.h"
 #include <QApplication>
@@ -132,7 +134,7 @@ std::unique_ptr<Interface> create_interface(const CommandLineArgs& args) {
     }
 }
 
-void setup_callbacks(UnifiedMessenger& app, Interface& ui) {
+void setup_callbacks(Verita& app, Interface& ui) {
     app.set_message_callback([&ui](const Message& message) {
         ui.display_message(message);
     });
@@ -205,7 +207,7 @@ int run_application(int argc, char* argv[], const CommandLineArgs& args) {
 
     try {
 
-        auto app = std::make_unique<UnifiedMessenger>();
+        auto app = std::make_unique<Verita>();
 
         if (!args.config_file.empty()) {
             if (!app->load_config(args.config_file)) {

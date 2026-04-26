@@ -39,8 +39,8 @@ std::string Message::to_json() const {
     json["protocol"] = protocol;
     json["type"] = static_cast<int>(type);
     json["status"] = static_cast<int>(status);
-    json["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
-        timestamp.time_since_epoch()).count();
+    json["timestamp"] = JsonValue(static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        timestamp.time_since_epoch()).count()));
 
     if (!reply_to_id.empty()) {
         json["reply_to_id"] = reply_to_id;
@@ -67,7 +67,7 @@ Message Message::from_json(const std::string& json_str) {
         msg.type = static_cast<MessageType>(json["type"].as_int());
         msg.status = static_cast<MessageStatus>(json["status"].as_int());
 
-        int64_t timestamp_ms = json["timestamp"].as_int();
+        int64_t timestamp_ms = json["timestamp"].as_int64();
         msg.timestamp = std::chrono::system_clock::time_point(
             std::chrono::milliseconds(timestamp_ms));
 

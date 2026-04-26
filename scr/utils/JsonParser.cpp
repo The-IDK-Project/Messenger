@@ -1,7 +1,9 @@
 #include "utils/JsonParser.h"
-#include "utils/Logger.h"
-#include <sstream>
+
+#include <cctype>
+#include <fstream>
 #include <iomanip>
+#include <sstream>
 
 class JsonValue::Impl {
 public:
@@ -13,13 +15,9 @@ public:
     std::map<std::string, JsonValue> object_value;
 };
 
-JsonValue::JsonValue() : impl_(std::make_unique<Impl>()) {
-    impl_->type = NULL_TYPE;
-}
+JsonValue::JsonValue() : impl_(std::make_unique<Impl>()) {}
 
-JsonValue::JsonValue(std::nullptr_t) : impl_(std::make_unique<Impl>()) {
-    impl_->type = NULL_TYPE;
-}
+JsonValue::JsonValue(std::nullptr_t) : impl_(std::make_unique<Impl>()) {}
 
 JsonValue::JsonValue(bool value) : impl_(std::make_unique<Impl>()) {
     impl_->type = BOOL;
@@ -27,6 +25,11 @@ JsonValue::JsonValue(bool value) : impl_(std::make_unique<Impl>()) {
 }
 
 JsonValue::JsonValue(int value) : impl_(std::make_unique<Impl>()) {
+    impl_->type = NUMBER;
+    impl_->number_value = static_cast<double>(value);
+}
+
+JsonValue::JsonValue(int64_t value) : impl_(std::make_unique<Impl>()) {
     impl_->type = NUMBER;
     impl_->number_value = static_cast<double>(value);
 }
@@ -43,7 +46,7 @@ JsonValue::JsonValue(const std::string& value) : impl_(std::make_unique<Impl>())
 
 JsonValue::JsonValue(const char* value) : impl_(std::make_unique<Impl>()) {
     impl_->type = STRING;
-    impl_->string_value = value;
+    impl_->string_value = value ? value : "";
 }
 
 JsonValue::JsonValue(const std::vector<JsonValue>& value) : impl_(std::make_unique<Impl>()) {
@@ -56,9 +59,7 @@ JsonValue::JsonValue(const std::map<std::string, JsonValue>& value) : impl_(std:
     impl_->object_value = value;
 }
 
-JsonValue::JsonValue(const JsonValue& other) : impl_(std::make_unique<Impl>()) {
-    *impl_ = *other.impl_;
-}
+JsonValue::JsonValue(const JsonValue& other) : impl_(std::make_unique<Impl>(*other.impl_)) {}
 
 JsonValue::JsonValue(JsonValue&& other) noexcept = default;
 
@@ -77,36 +78,57 @@ JsonValue::Type JsonValue::get_type() const {
     return impl_->type;
 }
 
-bool JsonValue::is_null() const { return impl_->type == NULL_TYPE; }
-bool JsonValue::is_bool() const { return impl_->type == BOOL; }
-bool JsonValue::is_number() const { return impl_->type == NUMBER; }
-bool JsonValue::is_string() const { return impl_->type == STRING; }
-bool JsonValue::is_array() const { return impl_->type == ARRAY; }
-bool JsonValue::is_object() const { return impl_->type == OBJECT; }
+bool JsonValue::is_null() const {
+    return impl_->type == NULL_TYPE;
+}
+
+bool JsonValue::is_bool() const {
+    return impl_->type == BOOL;
+}
+
+bool JsonValue::is_number() const {
+    return impl_->type == NUMBER;
+}
+
+bool JsonValue::is_string() const {
+    return impl_->type == STRING;
+}
+
+bool JsonValue::is_array() const {
+    return impl_->type == ARRAY;
+}
+
+bool JsonValue::is_object() const {
+    return impl_->type == OBJECT;
+}
 
 bool JsonValue::as_bool(bool default_value) const {
-    if (impl_->type == BOOL) return impl_->bool_value;
-    return default_value;
+    return impl_->type == BOOL ? impl_->bool_value : default_value;
 }
 
 int JsonValue::as_int(int default_value) const {
-    if (impl_->type == NUMBER) return static_cast<int>(impl_->number_value);
-    return default_value;
+    return impl_->type == NUMBER ? static_cast<int>(impl_->number_value) : default_value;
+}
+
+int64_t JsonValue::as_int64(int64_t default_value) const {
+    return impl_->type == NUMBER ? static_cast<int64_t>(impl_->number_value) : default_value;
 }
 
 double JsonValue::as_double(double default_value) const {
-    if (impl_->type == NUMBER) return impl_->number_value;
-    return default_value;
+    return impl_->type == NUMBER ? impl_->number_value : default_value;
 }
 
 std::string JsonValue::as_string(const std::string& default_value) const {
-    if (impl_->type == STRING) return impl_->string_value;
-    return default_value;
+    return impl_->type == STRING ? impl_->string_value : default_value;
 }
 
 size_t JsonValue::size() const {
-    if (impl_->type == ARRAY) return impl_->array_value.size();
-    if (impl_->type == OBJECT) return impl_->object_value.size();
+    if (impl_->type == ARRAY) {
+        return impl_->array_value.size();
+    }
+    if (impl_->type == OBJECT) {
+        return impl_->object_value.size();
+    }
     return 0;
 }
 
@@ -120,13 +142,13 @@ const JsonValue& JsonValue::operator[](size_t index) const {
 
 JsonValue& JsonValue::operator[](size_t index) {
     static JsonValue null_value;
-    if (impl_->type == ARRAY) {
-        if (index >= impl_->array_value.size()) {
-            impl_->array_value.resize(index + 1);
-        }
-        return impl_->array_value[index];
+    if (impl_->type != ARRAY) {
+        return null_value;
     }
-    return null_value;
+    if (index >= impl_->array_value.size()) {
+        impl_->array_value.resize(index + 1);
+    }
+    return impl_->array_value[index];
 }
 
 void JsonValue::push_back(const JsonValue& value) {
@@ -142,58 +164,43 @@ void JsonValue::push_back(JsonValue&& value) {
 }
 
 bool JsonValue::has_key(const std::string& key) const {
-    if (impl_->type == OBJECT) {
-        return impl_->object_value.find(key) != impl_->object_value.end();
-    }
-    return false;
+    return impl_->type == OBJECT && impl_->object_value.contains(key);
 }
 
 const JsonValue& JsonValue::operator[](const std::string& key) const {
     static JsonValue null_value;
-    if (impl_->type == OBJECT) {
-        auto it = impl_->object_value.find(key);
-        if (it != impl_->object_value.end()) {
-            return it->second;
-        }
+    if (impl_->type != OBJECT) {
+        return null_value;
     }
-    return null_value;
+    auto it = impl_->object_value.find(key);
+    return it != impl_->object_value.end() ? it->second : null_value;
 }
 
 JsonValue& JsonValue::operator[](const std::string& key) {
     if (impl_->type != OBJECT) {
         impl_->type = OBJECT;
+        impl_->object_value.clear();
     }
     return impl_->object_value[key];
 }
 
 void JsonValue::set(const std::string& key, const JsonValue& value) {
-    if (impl_->type != OBJECT) {
-        impl_->type = OBJECT;
-    }
-    impl_->object_value[key] = value;
+    (*this)[key] = value;
 }
 
 void JsonValue::set(const std::string& key, JsonValue&& value) {
-    if (impl_->type != OBJECT) {
-        impl_->type = OBJECT;
-    }
-    impl_->object_value[key] = std::move(value);
+    (*this)[key] = std::move(value);
 }
 
 std::vector<std::string> JsonValue::get_keys() const {
     std::vector<std::string> keys;
     if (impl_->type == OBJECT) {
-        for (const auto& pair : impl_->object_value) {
-            keys.push_back(pair.first);
+        keys.reserve(impl_->object_value.size());
+        for (const auto& [key, _] : impl_->object_value) {
+            keys.push_back(key);
         }
     }
     return keys;
-}
-
-std::string JsonValue::to_string(bool pretty, int indent) const {
-    std::ostringstream oss;
-    serialize(oss, pretty, indent, 0);
-    return oss.str();
 }
 
 void JsonValue::serialize(std::ostringstream& oss, bool pretty, int indent, int current_indent) const {
@@ -210,197 +217,333 @@ void JsonValue::serialize(std::ostringstream& oss, bool pretty, int indent, int 
         case STRING:
             oss << std::quoted(impl_->string_value);
             break;
-        case ARRAY:
+        case ARRAY: {
             oss << "[";
-            if (pretty && !impl_->array_value.empty()) oss << "\n";
-            for (size_t i = 0; i < impl_->array_value.size(); ++i) {
-                if (pretty) oss << std::string(current_indent + indent, ' ');
-                impl_->array_value[i].serialize(oss, pretty, indent, current_indent + indent);
-                if (i < impl_->array_value.size() - 1) oss << ",";
-                if (pretty) oss << "\n";
+            if (pretty && !impl_->array_value.empty()) {
+                oss << "\n";
             }
-            if (pretty && !impl_->array_value.empty()) oss << std::string(current_indent, ' ');
+            for (size_t i = 0; i < impl_->array_value.size(); ++i) {
+                if (pretty) {
+                    oss << std::string(current_indent + indent, ' ');
+                }
+                impl_->array_value[i].serialize(oss, pretty, indent, current_indent + indent);
+                if (i + 1 < impl_->array_value.size()) {
+                    oss << ",";
+                }
+                if (pretty) {
+                    oss << "\n";
+                }
+            }
+            if (pretty && !impl_->array_value.empty()) {
+                oss << std::string(current_indent, ' ');
+            }
             oss << "]";
             break;
-        case OBJECT:
+        }
+        case OBJECT: {
             oss << "{";
-            if (pretty && !impl_->object_value.empty()) oss << "\n";
+            if (pretty && !impl_->object_value.empty()) {
+                oss << "\n";
+            }
             size_t i = 0;
             for (const auto& [key, value] : impl_->object_value) {
-                if (pretty) oss << std::string(current_indent + indent, ' ');
+                if (pretty) {
+                    oss << std::string(current_indent + indent, ' ');
+                }
                 oss << std::quoted(key) << ":";
-                if (pretty) oss << " ";
+                if (pretty) {
+                    oss << " ";
+                }
                 value.serialize(oss, pretty, indent, current_indent + indent);
-                if (++i < impl_->object_value.size()) oss << ",";
-                if (pretty) oss << "\n";
+                if (++i < impl_->object_value.size()) {
+                    oss << ",";
+                }
+                if (pretty) {
+                    oss << "\n";
+                }
             }
-            if (pretty && !impl_->object_value.empty()) oss << std::string(current_indent, ' ');
+            if (pretty && !impl_->object_value.empty()) {
+                oss << std::string(current_indent, ' ');
+            }
             oss << "}";
             break;
+        }
     }
+}
+
+std::string JsonValue::to_string(bool pretty, int indent) const {
+    std::ostringstream oss;
+    serialize(oss, pretty, indent, 0);
+    return oss.str();
+}
+
+std::string JsonValue::to_json() const {
+    return to_string(false);
+}
+
+JsonValue JsonValue::parse(const std::string& json_string) {
+    return JsonParser::parse(json_string);
+}
+
+JsonValue JsonValue::array() {
+    return JsonValue(std::vector<JsonValue>{});
+}
+
+JsonValue JsonValue::object() {
+    return JsonValue(std::map<std::string, JsonValue>{});
 }
 
 JsonValue JsonParser::parse(const std::string& json_string) {
     size_t position = 0;
-    return parse_value(json_string, position);
+    JsonValue result = parse_value(json_string, position);
+    skip_whitespace(json_string, position);
+    if (position != json_string.size()) {
+        throw ParseError("Unexpected trailing characters", position);
+    }
+    return result;
+}
+
+JsonValue JsonParser::parse_file(const std::string& filename) {
+    std::ifstream input(filename);
+    if (!input) {
+        throw ParseError("Failed to open file", 0);
+    }
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    return parse(buffer.str());
+}
+
+bool JsonParser::validate(const std::string& json_string) {
+    try {
+        parse(json_string);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+std::string JsonParser::stringify(const JsonValue& value, bool pretty, int indent) {
+    return value.to_string(pretty, indent);
+}
+
+bool JsonParser::write_to_file(const JsonValue& value, const std::string& filename, bool pretty) {
+    std::ofstream output(filename);
+    if (!output) {
+        return false;
+    }
+    output << value.to_string(pretty);
+    return output.good();
 }
 
 JsonValue JsonParser::parse_value(const std::string& json_string, size_t& position) {
     skip_whitespace(json_string, position);
-
     char current = get_current_char(json_string, position);
 
     switch (current) {
-        case '{': return parse_object(json_string, position);
-        case '[': return parse_array(json_string, position);
-        case '"': return parse_string(json_string, position);
-        case 't': case 'f': case 'n': return parse_keyword(json_string, position);
-        case '-': case '0': case '1': case '2': case '3': case '4':
-        case '5': case '6': case '7': case '8': case '9':
-            return parse_number(json_string, position);
+        case '{':
+            return parse_object(json_string, position);
+        case '[':
+            return parse_array(json_string, position);
+        case '"':
+            return parse_string(json_string, position);
+        case 't':
+        case 'f':
+        case 'n':
+            return parse_keyword(json_string, position);
         default:
+            if (current == '-' || std::isdigit(static_cast<unsigned char>(current))) {
+                return parse_number(json_string, position);
+            }
             throw ParseError("Unexpected character", position);
     }
 }
 
 JsonValue JsonParser::parse_object(const std::string& json_string, size_t& position) {
     JsonValue result = JsonValue::object();
-
     get_next_char(json_string, position);
     skip_whitespace(json_string, position);
 
     if (get_current_char(json_string, position) == '}') {
-        get_next_char(json_string, position); // Skip '}'
+        get_next_char(json_string, position);
         return result;
     }
 
     while (true) {
-
-        skip_whitespace(json_string, position);
-        if (get_current_char(json_string, position) != '"') {
-            throw ParseError("Expected string key", position);
-        }
-
         JsonValue key = parse_string(json_string, position);
-        std::string key_str = key.as_string();
-
         skip_whitespace(json_string, position);
         if (get_current_char(json_string, position) != ':') {
             throw ParseError("Expected ':'", position);
         }
         get_next_char(json_string, position);
-
-        JsonValue value = parse_value(json_string, position);
-        result.set(key_str, value);
-
+        result.set(key.as_string(), parse_value(json_string, position));
         skip_whitespace(json_string, position);
+
         char current = get_current_char(json_string, position);
         if (current == '}') {
             get_next_char(json_string, position);
             break;
-        } else if (current == ',') {
-            get_next_char(json_string, position);
-        } else {
+        }
+        if (current != ',') {
             throw ParseError("Expected ',' or '}'", position);
         }
+        get_next_char(json_string, position);
+        skip_whitespace(json_string, position);
+    }
+
+    return result;
+}
+
+JsonValue JsonParser::parse_array(const std::string& json_string, size_t& position) {
+    JsonValue result = JsonValue::array();
+    get_next_char(json_string, position);
+    skip_whitespace(json_string, position);
+
+    if (get_current_char(json_string, position) == ']') {
+        get_next_char(json_string, position);
+        return result;
+    }
+
+    while (true) {
+        result.push_back(parse_value(json_string, position));
+        skip_whitespace(json_string, position);
+
+        char current = get_current_char(json_string, position);
+        if (current == ']') {
+            get_next_char(json_string, position);
+            break;
+        }
+        if (current != ',') {
+            throw ParseError("Expected ',' or ']'", position);
+        }
+        get_next_char(json_string, position);
+        skip_whitespace(json_string, position);
     }
 
     return result;
 }
 
 JsonValue JsonParser::parse_string(const std::string& json_string, size_t& position) {
+    if (get_current_char(json_string, position) != '"') {
+        throw ParseError("Expected string", position);
+    }
     get_next_char(json_string, position);
 
     std::string result;
-    bool escaped = false;
-
-    while (position < json_string.length()) {
-        char c = json_string[position++];
-
-        if (escaped) {
-            switch (c) {
-                case '"': result += '"'; break;
-                case '\\': result += '\\'; break;
-                case '/': result += '/'; break;
-                case 'b': result += '\b'; break;
-                case 'f': result += '\f'; break;
-                case 'n': result += '\n'; break;
-                case 'r': result += '\r'; break;
-                case 't': result += '\t'; break;
-                case 'u':
-                    result += '?';
+    while (position < json_string.size()) {
+        char c = get_next_char(json_string, position);
+        if (c == '"') {
+            return JsonValue(result);
+        }
+        if (c == '\\') {
+            char escaped = get_next_char(json_string, position);
+            switch (escaped) {
+                case '"':
+                case '\\':
+                case '/':
+                    result.push_back(escaped);
                     break;
-                default: result += c; break;
+                case 'b':
+                    result.push_back('\b');
+                    break;
+                case 'f':
+                    result.push_back('\f');
+                    break;
+                case 'n':
+                    result.push_back('\n');
+                    break;
+                case 'r':
+                    result.push_back('\r');
+                    break;
+                case 't':
+                    result.push_back('\t');
+                    break;
+                case 'u':
+                    for (int i = 0; i < 4; ++i) {
+                        get_next_char(json_string, position);
+                    }
+                    result.push_back('?');
+                    break;
+                default:
+                    throw ParseError("Invalid escape sequence", position);
             }
-            escaped = false;
         } else {
-            if (c == '"') {
-                break;
-            } else if (c == '\\') {
-                escaped = true;
-            } else {
-                result += c;
-            }
+            result.push_back(c);
         }
     }
 
-    return JsonValue(result);
+    throw ParseError("Unterminated string", position);
 }
 
 JsonValue JsonParser::parse_number(const std::string& json_string, size_t& position) {
     size_t start = position;
 
     if (json_string[position] == '-') {
-        position++;
+        ++position;
     }
-
-    while (position < json_string.length() && std::isdigit(json_string[position])) {
-        position++;
+    while (position < json_string.size() && std::isdigit(static_cast<unsigned char>(json_string[position]))) {
+        ++position;
     }
-
-    if (position < json_string.length() && json_string[position] == '.') {
-        position++;
-        while (position < json_string.length() && std::isdigit(json_string[position])) {
-            position++;
+    if (position < json_string.size() && json_string[position] == '.') {
+        ++position;
+        while (position < json_string.size() && std::isdigit(static_cast<unsigned char>(json_string[position]))) {
+            ++position;
+        }
+    }
+    if (position < json_string.size() && (json_string[position] == 'e' || json_string[position] == 'E')) {
+        ++position;
+        if (position < json_string.size() && (json_string[position] == '+' || json_string[position] == '-')) {
+            ++position;
+        }
+        while (position < json_string.size() && std::isdigit(static_cast<unsigned char>(json_string[position]))) {
+            ++position;
         }
     }
 
-    if (position < json_string.length() && (json_string[position] == 'e' || json_string[position] == 'E')) {
-        position++;
-        if (position < json_string.length() && (json_string[position] == '+' || json_string[position] == '-')) {
-            position++;
-        }
-        while (position < json_string.length() && std::isdigit(json_string[position])) {
-            position++;
-        }
-    }
+    return JsonValue(std::stod(json_string.substr(start, position - start)));
+}
 
-    std::string number_str = json_string.substr(start, position - start);
-    try {
-        return JsonValue(std::stod(number_str));
-    } catch (...) {
-        throw ParseError("Invalid number", start);
+JsonValue JsonParser::parse_keyword(const std::string& json_string, size_t& position) {
+    if (json_string.compare(position, 4, "true") == 0) {
+        position += 4;
+        return JsonValue(true);
     }
+    if (json_string.compare(position, 5, "false") == 0) {
+        position += 5;
+        return JsonValue(false);
+    }
+    if (json_string.compare(position, 4, "null") == 0) {
+        position += 4;
+        return JsonValue(nullptr);
+    }
+    throw ParseError("Invalid keyword", position);
 }
 
 void JsonParser::skip_whitespace(const std::string& json_string, size_t& position) {
-    while (position < json_string.length() && std::isspace(json_string[position])) {
-        position++;
+    while (position < json_string.size() && std::isspace(static_cast<unsigned char>(json_string[position]))) {
+        ++position;
     }
 }
 
 char JsonParser::get_current_char(const std::string& json_string, size_t position) {
-    if (position >= json_string.length()) {
+    if (position >= json_string.size()) {
         throw ParseError("Unexpected end of input", position);
     }
     return json_string[position];
 }
 
 char JsonParser::get_next_char(const std::string& json_string, size_t& position) {
-    if (position >= json_string.length()) {
+    if (position >= json_string.size()) {
         throw ParseError("Unexpected end of input", position);
     }
     return json_string[position++];
+}
+
+std::string JsonParser::encode_string(const std::string& str) {
+    return JsonValue(str).to_string();
+}
+
+std::string JsonParser::decode_string(const std::string& str) {
+    return parse('"' + str + '"').as_string();
 }
 
 JsonParser::ParseError::ParseError(const std::string& message, size_t position)
@@ -410,18 +553,14 @@ size_t JsonParser::ParseError::get_position() const {
     return position_;
 }
 
+std::ostream& operator<<(std::ostream& os, const JsonValue& value) {
+    os << value.to_string();
+    return os;
+}
 
-//Вот и помер дед Максим
-//Да и хуй остался с ним
-//Положили его в гроб
-//Хуй упёрся в потолок
-
-//Он здоровенный был мужик
-//Он на хую вертел шашлык
-//Хуем грядки он копал
-//Хуем грядки поливал
-
-//А соседку тётю Зину
-//Он ебал через корзину
-//А соседа дядю Гришу
-//Хуем кинул через крышу
+std::istream& operator>>(std::istream& is, JsonValue& value) {
+    std::ostringstream buffer;
+    buffer << is.rdbuf();
+    value = JsonValue::parse(buffer.str());
+    return is;
+}

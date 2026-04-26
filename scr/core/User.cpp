@@ -36,10 +36,10 @@ std::string User::to_json() const {
         json["avatar_url"] = avatar_url;
     }
 
-    json["last_seen"] = std::chrono::duration_cast<std::chrono::milliseconds>(
-        last_seen.time_since_epoch()).count();
-    json["created_at"] = std::chrono::duration_cast<std::chrono::milliseconds>(
-        created_at.time_since_epoch()).count();
+    json["last_seen"] = JsonValue(static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        last_seen.time_since_epoch()).count()));
+    json["created_at"] = JsonValue(static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        created_at.time_since_epoch()).count()));
     json["online"] = online_;
 
     return json.to_string();
@@ -65,13 +65,13 @@ User User::from_json(const std::string& json_str) {
         }
 
         if (json.has_key("last_seen")) {
-            int64_t last_seen_ms = json["last_seen"].as_int();
+            int64_t last_seen_ms = json["last_seen"].as_int64();
             user.last_seen = std::chrono::system_clock::time_point(
                 std::chrono::milliseconds(last_seen_ms));
         }
 
         if (json.has_key("created_at")) {
-            int64_t created_at_ms = json["created_at"].as_int();
+            int64_t created_at_ms = json["created_at"].as_int64();
             user.created_at = std::chrono::system_clock::time_point(
                 std::chrono::milliseconds(created_at_ms));
         }

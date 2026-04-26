@@ -7,6 +7,5 @@ build/
 *.db
 *.cache
 .vscode/
-.idea/
 *.user
 compile_commands.json

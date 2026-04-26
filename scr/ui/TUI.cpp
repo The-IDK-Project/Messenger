@@ -413,3 +413,4 @@ void TUI::show_notification(const std::string& title, const std::string& message
 void TUI::set_input_text(const std::string& text) {}
 void TUI::set_title(const std::string& title) {}
 void TUI::show_incoming_call(const std::string& room_id, const std::string& caller_name, bool is_video) {}
+void TUI::show_screen_selection(const std::vector<ScreenCapturer::Screen>& screens) {}
