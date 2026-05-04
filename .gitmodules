@@ -1,3 +1,0 @@
-[submodule "external/mtxclient"]
-	path = external/mtxclient
-	url = https://github.com/Nheko-Reborn/mtxclient.git
